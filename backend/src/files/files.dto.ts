@@ -25,3 +25,23 @@ export class UploadCreated {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ example: partSize, description: 'Tamaño de parte en bytes, salvo la última.' }) partSize!: number;
 }
+
+class StorageVolume {
+  @ApiProperty({ type: String, example: '53687091200' }) availableBytes!: string;
+  @ApiProperty({ type: String, example: '107374182400' }) totalBytes!: string;
+  @ApiProperty({ type: String, format: 'date-time' }) measuredAt!: string;
+}
+
+class LargeFile {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: String, example: '1048576' }) size!: string;
+}
+
+export class StorageOverview {
+  @ApiProperty({ type: String }) used!: string;
+  @ApiProperty({ type: String }) quota!: string;
+  @ApiProperty({ type: String }) trashBytes!: string;
+  @ApiProperty({ type: StorageVolume, nullable: true }) volume!: StorageVolume | null;
+  @ApiProperty({ type: [LargeFile], maxItems: 10 }) largestFiles!: LargeFile[];
+}

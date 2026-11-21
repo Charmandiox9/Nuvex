@@ -22,6 +22,7 @@ import { MediaViewer } from '@/components/media-viewer';
 import { Pagination } from '@/components/pagination';
 import { RowMenu } from '@/components/row-menu';
 import { Imports, LinkPanel, Settings } from './panels';
+import { StoragePanel } from './storage';
 import { TransferSummary, Transfers } from '@/components/transfers';
 import { useTransfers } from '@/hooks/use-transfers';
 import { useI18n } from '@/i18n/provider';
@@ -33,6 +34,7 @@ const sections = [
   { id: 'links', key: 'drive.section.links', icon: Link2 },
   { id: 'transfers', key: 'drive.section.transfers', icon: ArrowUpFromLine },
   { id: 'imports', key: 'drive.section.imports', icon: FileJson },
+  { id: 'storage', key: 'drive.storage', icon: HardDrive },
   { id: 'settings', key: 'drive.section.settings', icon: SettingsIcon },
 ] as const;
 type View = typeof sections[number]['id'];
@@ -172,6 +174,7 @@ export default function Drive() {
   const refresh = () => {
     void cache.invalidateQueries({ queryKey: ['entries'] });
     void cache.invalidateQueries({ queryKey: ['quota'] });
+    void cache.invalidateQueries({ queryKey: ['storage-overview'] });
     void cache.invalidateQueries({ queryKey: ['destinations'] });
   };
   const transfers = useTransfers(refresh, t);
@@ -564,6 +567,7 @@ export default function Drive() {
         {view === 'transfers' && <div className="panel-column"><Transfers transfers={transfers.transfers} cancel={transfers.cancel} retry={transfers.retry} /></div>}
         {view === 'imports' && <div className="panel-column"><Imports parentId={parentId} folderName={folderName} /></div>}
         {view === 'links' && <div className="panel-column"><LinkPanel /></div>}
+        {view === 'storage' && <StoragePanel openTrash={() => navigate('trash')} />}
         {view === 'settings' && <Settings />}
       </div>
     </section>

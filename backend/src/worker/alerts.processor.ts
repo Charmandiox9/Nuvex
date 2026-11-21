@@ -1,5 +1,6 @@
-import { stat, statfs } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { storageVolumeCapacity } from '../storage/volume';
 import { sendAlert } from './alerts';
 import type { WorkerContext } from './worker-context';
 
@@ -8,9 +9,9 @@ export async function alerts({ database }: Pick<WorkerContext, 'database'>) {
   const from = process.env.NUVEX_ALERT_FROM;
   const to = process.env.NUVEX_ALERT_TO;
   if (!key || !from || !to) return;
-  const disk = await statfs(process.env.NUVEX_DISK_PATH ?? '/data-health');
+  const disk = await storageVolumeCapacity();
   const issues: [string, string][] = [];
-  if (disk.bavail * disk.bsize < 5 * 1024 ** 3 || disk.bavail / disk.blocks < 0.1) issues.push(['disk', 'Queda poco espacio en el disco de Nuvex.']);
+  if (disk.availableBytes < 5n * 1024n ** 3n || disk.availableBytes * 10n < disk.totalBytes) issues.push(['disk', 'Queda poco espacio en el disco de Nuvex.']);
   const backup = await stat(join(process.env.NUVEX_BACKUP_STATE ?? '/backup-state', 'last-success')).catch(() => null);
   if (!backup || Date.now() - backup.mtimeMs > 26 * 3600_000) issues.push(['backup', 'Falta un respaldo reciente de Nuvex.']);
   for (const [id, message] of issues) {

@@ -4,6 +4,7 @@ import { log } from '../common/logging';
 import { createDatabase } from '../../prisma/client';
 import { openQueue, queueName, redisOptions } from '../queue/queue';
 import { Storage } from '../storage/storage';
+import { recordStorageVolume } from '../storage/volume';
 import { alerts } from './alerts.processor';
 import { importItem } from './import.processor';
 import { maintenance, purge } from './maintenance.processor';
@@ -45,6 +46,7 @@ async function run() {
     void record.catch(() => log('error', 'job failure not recorded'));
   });
   await queue.upsertJobScheduler('maintenance', { every: 60_000 }, { name: 'maintenance', data: { id: '' } });
+  await recordStorageVolume(database).catch(() => log('warn', 'No se pudo registrar el espacio del volumen.'));
   if (process.env.RESEND_API_KEY) {
     await queue.upsertJobScheduler('alerts', { every: 3600_000 }, {
       name: 'alerts', data: { id: '' }, opts: { attempts: 3, backoff: { type: 'exponential', delay: 1500 }, removeOnComplete: true, removeOnFail: 50 },

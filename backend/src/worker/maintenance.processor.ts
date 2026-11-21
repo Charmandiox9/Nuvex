@@ -1,4 +1,6 @@
 import type { Entry } from '../../prisma/generated/client';
+import { log } from '../common/logging';
+import { recordStorageVolume } from '../storage/volume';
 import type { WorkerContext } from './worker-context';
 
 const day = 86_400_000;
@@ -28,6 +30,7 @@ export async function maintenance({ database, storage, queue }: WorkerContext) {
   const now = new Date();
   const stale = new Date(Date.now() - day);
   await Promise.all([
+    recordStorageVolume(database).catch(() => log('warn', 'No se pudo registrar el espacio del volumen.')),
     database.rateLimit.deleteMany({ where: { expiresAt: { lt: now } } }),
     database.session.deleteMany({ where: { expiresAt: { lt: now } } }),
     database.upload.deleteMany({ where: { state: 'completed', updatedAt: { lt: stale } } }),

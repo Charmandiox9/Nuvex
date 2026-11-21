@@ -36,6 +36,7 @@ test.afterAll(async () => {
 
 test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, browser }, info) => {
   await page.goto('/');
+  expect((await page.request.get('/api/v1/storage/overview')).status()).toBe(401);
   await page.screenshot({ path: info.outputPath('inicio.png') });
   await page.getByLabel('Usuario', { exact: true }).fill(input.username);
   await page.getByLabel('Contraseña', { exact: true }).fill(input.password);
@@ -107,6 +108,7 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
     await expect(guest.getByRole('heading', { name: 'renombrado.txt' })).toBeVisible();
     await guest.reload();
     await expect(guest.getByRole('link', { name: 'Descargar' })).toBeVisible();
+    expect((await guest.request.get('/api/v1/storage/overview')).status()).toBe(401);
   } finally { await context.close(); }
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
   await page.getByRole('button', { name: 'Mover a papelera' }).click();
@@ -115,4 +117,27 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   await page.getByRole('button', { name: 'Restaurar', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Restaurar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'La papelera está vacía' })).toBeVisible();
+  const storageButton = page.getByRole('button', { name: 'Almacenamiento', exact: true });
+  await storageButton.click();
+  const quota = page.getByRole('region', { name: 'Cuota de Nuvex' });
+  const volume = page.getByRole('region', { name: 'Volumen de archivos' });
+  const trash = page.getByRole('region', { name: 'Peso de la papelera' });
+  const largest = page.getByRole('region', { name: 'Archivos más grandes' });
+  await expect(trash.getByText('0 B', { exact: true })).toBeVisible();
+  await expect(largest.getByRole('listitem').first()).toContainText('reintento.txt');
+  await expect(quota.getByText(/^8 MB de /)).toBeVisible();
+  const report = await page.request.get('/api/v1/storage/overview');
+  expect(report.ok()).toBe(true);
+  if ((await report.json()).volume) await expect(volume.getByText(/ libres$/)).toBeVisible();
+  else await expect(volume.getByText(/medición reciente/)).toBeVisible();
+  await page.screenshot({ path: info.outputPath('almacenamiento.png') });
+
+  await page.locator('nav').getByRole('button', { name: 'Mis archivos', exact: true }).click();
+  await page.locator('.workspace-heading').getByRole('button', { name: 'Mis archivos', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Seleccionar Documentos' }).check();
+  await page.getByRole('button', { name: 'Mover a papelera' }).click();
+  await storageButton.click();
+  await expect(trash.getByText('8 MB', { exact: true })).toBeVisible();
+  await expect(largest.getByText('Todavía no hay archivos fuera de la papelera.')).toBeVisible();
+  await expect(quota.getByText(/^8 MB de /)).toBeVisible();
 });

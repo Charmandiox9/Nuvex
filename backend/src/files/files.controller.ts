@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Req, Res } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiCookieAuth, ApiCreatedResponse, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiCookieAuth, ApiCreatedResponse, ApiHeader, ApiOkResponse, ApiOperation, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthService } from '../auth/auth.service';
-import { ChangeBody, ConfirmBody, FolderBody, UploadBody, UploadCreated } from './files.dto';
+import { ChangeBody, ConfirmBody, FolderBody, StorageOverview, UploadBody, UploadCreated } from './files.dto';
 import { FilesService } from './files.service';
 
 @ApiTags('Archivos')
@@ -15,6 +15,14 @@ export class FileController {
   @Get('quota')
   async quota(@Req() req: Request) {
     return this.files.quota(await this.owner(req));
+  }
+
+  @Get('storage/overview')
+  @ApiOperation({ summary: 'Consulta la cuota, el volumen y los archivos más grandes del propietario.' })
+  @ApiOkResponse({ type: StorageOverview })
+  @ApiUnauthorizedResponse({ description: 'Se requiere una sesión verificada del propietario.' })
+  async storageOverview(@Req() req: Request): Promise<StorageOverview> {
+    return this.files.storageOverview(await this.owner(req));
   }
 
   @Post('folders')

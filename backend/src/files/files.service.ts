@@ -12,8 +12,9 @@ import { AppException } from '../common/errors';
 import { QueueService } from '../queue/queue.service';
 import { InvalidOriginalRange } from '../storage/jpeg-xl';
 import { partSize, quotaBytes, Storage } from '../storage/storage';
+import { recentStorageVolume, storageVolumeKey } from '../storage/volume';
 import { cleanName, mediaKind, serializeEntry } from './file-entry';
-import type { ChangeBody, FolderBody, UploadBody } from './files.dto';
+import type { ChangeBody, FolderBody, StorageOverview, UploadBody } from './files.dto';
 
 type Db = Database['client'] | Prisma.TransactionClient;
 type Destination = { ownerId: string; parentId: string; name: string };
@@ -34,6 +35,30 @@ export class FilesService {
   async quota(ownerId: string) {
     const total = await this.db.client.entry.aggregate({ where: { ownerId }, _sum: { size: true } });
     return { used: (total._sum.size ?? 0n).toString(), quota: quotaBytes().toString() };
+  }
+
+  async storageOverview(ownerId: string): Promise<StorageOverview> {
+    const [catalog, setting] = await Promise.all([
+      this.db.client.$queryRaw<Pick<StorageOverview, 'used' | 'trashBytes' | 'largestFiles'>[]>`
+        WITH RECURSIVE trash(id) AS (
+          SELECT "id" FROM "Entry" WHERE "ownerId" = ${ownerId} AND "trashedAt" IS NOT NULL
+          UNION
+          SELECT child."id" FROM "Entry" child JOIN trash ON child."parentId" = trash.id WHERE child."ownerId" = ${ownerId}
+        ), files AS (
+          SELECT entry."id", entry."name", entry."size", trash.id IS NOT NULL AS trashed
+          FROM "Entry" entry LEFT JOIN trash ON entry."id" = trash.id
+          WHERE entry."ownerId" = ${ownerId} AND entry."kind" = 'file'
+        )
+        SELECT COALESCE(SUM(size), 0)::text AS used,
+          COALESCE(SUM(size) FILTER (WHERE trashed), 0)::text AS "trashBytes",
+          (SELECT COALESCE(jsonb_agg(jsonb_build_object('id', id, 'name', name, 'size', size::text) ORDER BY size DESC, id), '[]'::jsonb)
+            FROM (SELECT id, name, size FROM files WHERE NOT trashed ORDER BY size DESC, id LIMIT 10) largest) AS "largestFiles"
+        FROM files`,
+      this.db.client.setting.findUnique({ where: { key: storageVolumeKey } }),
+    ]);
+    // The aggregate returns one row even when the owner has no files.
+    const [usage] = catalog;
+    return { ...usage, quota: quotaBytes().toString(), volume: recentStorageVolume(setting?.value) };
   }
 
   async process(ownerId: string, id: string, transcode: boolean) {
