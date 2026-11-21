@@ -7,6 +7,7 @@ export type Entry = {
   size: string;
   mediaStatus: string;
   hasPreview: boolean;
+  hasIcon: boolean;
   updatedAt: string;
   trashedAt?: string;
 };

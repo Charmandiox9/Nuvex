@@ -160,6 +160,7 @@ progress::-moz-progress-bar { background: var(--accent); }
 .file-icon { color: var(--file-icon-color); background: var(--file-icon-bg); display: grid; place-items: center; }
 .file-icon.is-folder { color: var(--accent); background: var(--folder-icon-bg); }
 .file-thumb { object-fit: cover; }
+.folder-thumb { border: 1px solid var(--line); }
 .list-view { border-radius: 12px; overflow: clip; border: 1px solid var(--line); }
 .list-view article { border: 0; }
 .list-view article + article { border-top: 1px solid var(--line); }

@@ -3,6 +3,9 @@ import { content } from '@/lib/api';
 import type { Entry } from '@/types/entry';
 
 export function FileVisual({ row }: { row: Entry }) {
+  if (row.kind === 'folder' && row.hasIcon && !row.trashedAt) {
+    return <img className="file-thumb folder-thumb" src={content(row.id, 'icon')} alt="" loading="lazy" />;
+  }
   if (row.kind !== 'folder' && row.hasPreview && !row.trashedAt) {
     return <img className="file-thumb" src={content(row.id, 'thumb')} alt="" loading="lazy" />;
   }

@@ -62,6 +62,7 @@ export default function Drive() {
   const [op, setOp] = useState<{ name: Operation; rows: Entry[] }>();
   const [share, setShare] = useState<{ id: string; code: string; path: string; qr?: string }>();
   const [sending, setSending] = useState(false);
+  const [iconTarget, setIconTarget] = useState<string>();
   const [operationError, setOperationError] = useState('');
   const [suggested, setSuggested] = useState('');
   const [busy, setBusy] = useState(false);
@@ -74,6 +75,7 @@ export default function Drive() {
   const dialog = useRef<HTMLDialogElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const folderPicker = useRef<HTMLInputElement>(null);
+  const iconPicker = useRef<HTMLInputElement>(null);
   const filters = useMemo<{ kind?: string; mimePrefix?: string; from?: string; minSize?: string; maxSize?: string; active: boolean }>(() => {
     const kind = typeFilter === 'folder' ? 'folder' : typeFilter === 'file' ? 'file' : undefined;
     const mimePrefix = typeFilter === 'image' ? 'image/' : typeFilter === 'video' ? 'video/' : typeFilter === 'audio' ? 'audio/' : undefined;
@@ -185,7 +187,11 @@ export default function Drive() {
     setOperationError('');
     setSuggested('');
     try {
-      if (op.name === 'folder') await api('/folders', 'POST', { name, parentId });
+      if (op.name === 'folder') {
+        const created = await api<Entry>('/folders', 'POST', { name, parentId });
+        const icon = input.get('icon');
+        if (icon instanceof File && icon.size) await api('/entries/' + created.id + '/icon', 'POST', icon);
+      }
       else if (op.name === 'share') {
         setShare(await api<{ id: string; code: string; path: string; qr?: string }>('/shares', 'POST', {
           entryId: op.rows[0].id, hours: Number(input.get('hours')), uses: Number(input.get('uses')),
@@ -215,6 +221,26 @@ export default function Drive() {
       setOperationError(message(error));
       if (error instanceof ApiError) setSuggested(error.suggestedName ?? '');
     } finally { setBusy(false); refresh(); }
+  }
+
+  function chooseIcon(id: string) { setIconTarget(id); iconPicker.current?.click(); }
+  async function uploadIcon(files: FileList | null) {
+    const file = files?.[0];
+    const target = iconTarget;
+    if (!file || !target) return;
+    setIconTarget(undefined);
+    try {
+      await api('/entries/' + target + '/icon', 'POST', file);
+      sileo.success({ title: t('drive.iconSaved') });
+      void cache.invalidateQueries({ queryKey: ['entries'] });
+    } catch (error) { sileo.error({ title: message(error) }); }
+  }
+  async function removeIcon(id: string) {
+    try {
+      await api('/entries/' + id + '/icon', 'DELETE');
+      sileo.success({ title: t('drive.iconRemoved') });
+      void cache.invalidateQueries({ queryKey: ['entries'] });
+    } catch (error) { sileo.error({ title: message(error) }); }
   }
 
   async function sendShare(event: FormEvent<HTMLFormElement>) {
@@ -341,6 +367,10 @@ export default function Drive() {
           const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = '';
           if (files.length) { navigate('transfers'); void transfers.add(files, parentId); }
         }} />
+        <input ref={iconPicker} type="file" accept="image/*" hidden onChange={(event) => {
+          const files = event.currentTarget.files; event.currentTarget.value = '';
+          void uploadIcon(files);
+        }} />
         {showListing && <div ref={listing}>
           <div className="listing-tools">
             <span>{active.length ? t(active.length === 1 ? 'drive.selectedOne' : 'drive.selectedOther', { count: active.length }) : filter ? t('drive.resultsFor', { query: filter }) : t('drive.content')}</span>
@@ -385,6 +415,10 @@ export default function Drive() {
             {view !== 'trash' && <button className="secondary" onClick={() => void trash()}>{t('drive.moveToTrash')}</button>}
             {view !== 'trash' && active.length === 1 && active[0].kind === 'file' && <a className="secondary" href={content(active[0].id)}><Download size={15} /> {t('drive.download')}</a>}
             {view !== 'trash' && active.length === 1 && active[0].kind === 'folder' && <a className="secondary" href={'/api/v1/entries/' + active[0].id + '/archive'}><Download size={15} /> {t('drive.downloadFolder')}</a>}
+            {view !== 'trash' && active.length === 1 && active[0].kind === 'folder' && <>
+              <button className="secondary" onClick={() => chooseIcon(active[0].id)}>{t('drive.setIcon')}</button>
+              {active[0].hasIcon && <button className="secondary" onClick={() => void removeIcon(active[0].id)}>{t('drive.removeIcon')}</button>}
+            </>}
           </div>}
           {entries.error && <p className="error" role="alert">{message(entries.error)}</p>}
           {entries.isPending && <p role="status">{t('drive.loading')}</p>}
@@ -435,6 +469,10 @@ export default function Drive() {
           </div> : <form className="stack" onSubmit={perform}>
             {(op.name === 'folder' || op.name === 'rename' || ((choosingFolder || op.name === 'restore') && op.rows.length === 1)) &&
               <><label htmlFor="operation-name">{t('drive.name')}</label><input id="operation-name" key={suggested || op.name} name="name" defaultValue={suggested || op.rows[0]?.name || ''} required maxLength={200} /></>}
+            {op.name === 'folder' && <>
+              <label htmlFor="folder-icon">{t('drive.folderIcon')}</label>
+              <input id="folder-icon" name="icon" type="file" accept="image/*" />
+            </>}
             {op.name === 'restore' && <label><input type="checkbox" checked={restoreOriginal} onChange={(event) => setRestoreOriginal(event.target.checked)} /> {t('drive.restoreOriginal')}</label>}
             {choosingFolder && <div className="folder-picker">
               <div className="actions"><strong>{movePath.at(-1)?.name ?? t('drive.section.files')}</strong>{movePath.length > 0 && <button type="button" className="text-button" onClick={() => setMovePath(movePath.slice(0, -1))}>{t('drive.upOneLevel')}</button>}</div>
