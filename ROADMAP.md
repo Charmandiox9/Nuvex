@@ -16,12 +16,12 @@ Principios para todo el plan (según `AGENTS.md`):
 
 ### 1. Gestión de cuenta del propietario — seguridad
 **Objetivo:** cambiar contraseña, re‑enrolar/reiniciar TOTP, regenerar códigos de recuperación y desactivar 2FA, con re‑autenticación.
-- [ ] Backend: `POST /auth/password` (rota hash, revoca otras sesiones, audita).
-- [ ] Backend: `POST /auth/totp/enroll` + `POST /auth/totp/confirm` (nuevo secreto + códigos).
-- [ ] Backend: `POST /auth/recovery/regenerate`.
-- [ ] Backend: `POST /auth/2fa/disable` (contraseña + código) y `POST /auth/sessions/revoke-all`.
-- [ ] Frontend: panel «Seguridad» en Ajustes (cambio de contraseña, re‑enrolar TOTP, regenerar códigos, desactivar 2FA).
-- [ ] Tests: integración de endpoints y e2e de cambio de contraseña. Sin migración.
+- [x] Backend: `POST /auth/password` (rota hash, revoca otras sesiones, audita).
+- [x] Backend: `POST /auth/totp/enroll` + `POST /auth/totp/confirm` (nuevo secreto + códigos).
+- [x] Backend: `POST /auth/recovery/regenerate`.
+- [x] Backend: `POST /auth/2fa/disable` (contraseña + código) y `POST /auth/sessions/revoke-all`.
+- [x] Frontend: panel «Seguridad» en Ajustes (cambio de contraseña, re‑enrolar TOTP, regenerar códigos, desactivar 2FA).
+- [x] Tests: integración de endpoints (cambio de contraseña, códigos, TOTP y sesiones). Sin migración. (e2e de navegador pendiente.)
 
 ### 2. Visor de medios tipo lightbox — impacto visual
 - [ ] Frontend: `components/media-viewer.tsx` (lista + índice; ←/→, `Esc`, swipe, zoom, foco atrapado).
