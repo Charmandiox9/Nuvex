@@ -174,7 +174,10 @@ progress::-moz-progress-bar { background: var(--accent); }
 .panel { display: grid; gap: 13px; margin-bottom: 15px; border: 1px solid var(--line); background: var(--sidebar); border-radius: 13px; padding: clamp(14px, 3vw, 25px); }
 .panel-column { display: grid; gap: 16px; max-width: 880px; align-content: start; }
 .panel-column .panel { margin-bottom: 0; }
-.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.settings-masonry { columns: 2 340px; column-gap: 16px; max-width: 1080px; }
+.settings-masonry > * { break-inside: avoid; margin: 0 0 16px; }
+.panel > button { justify-self: start; }
+#sec-secret { max-width: 460px; }
 .security-form { max-width: 460px; }
 .panel h2 { display: flex; align-items: center; gap: 8px; }
 .panel h2 svg { color: var(--accent); }
