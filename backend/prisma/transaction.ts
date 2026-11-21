@@ -5,7 +5,9 @@ export async function serialTransaction<T>(db: PrismaClient, operation: (tx: Pri
     try { return await db.$transaction(operation, { isolationLevel: 'Serializable' }); }
     catch (error) {
       const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
-      if (code !== 'P2034' || attempt === 3) throw error;
+      const cause = error instanceof Error && error.name === 'DriverAdapterError' ? error.cause : undefined;
+      const writeConflict = typeof cause === 'object' && cause !== null && 'kind' in cause && cause.kind === 'TransactionWriteConflict';
+      if (attempt === 3 || (code !== 'P2034' && !writeConflict)) throw error;
       await new Promise((resolve) => setTimeout(resolve, attempt * 20 + Math.random() * 25));
     }
   }
