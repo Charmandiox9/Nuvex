@@ -14,9 +14,11 @@ type Props = {
   index: number;
   onClose: () => void;
   onIndexChange: (index: number) => void;
+  hasNextPage?: boolean;
+  onNeedMore?: () => void;
 };
 
-export function MediaViewer({ items, index, onClose, onIndexChange }: Props) {
+export function MediaViewer({ items, index, onClose, onIndexChange, hasNextPage = false, onNeedMore }: Props) {
   const { t } = useI18n();
   const [zoom, setZoom] = useState(false);
   const [error, setError] = useState('');
@@ -65,6 +67,10 @@ export function MediaViewer({ items, index, onClose, onIndexChange }: Props) {
       document.body.style.overflow = previous;
     };
   }, [go, onClose]);
+
+  useEffect(() => {
+    if (hasNextPage && index >= items.length - 2) onNeedMore?.();
+  }, [hasNextPage, index, items.length, onNeedMore]);
 
   async function retry() {
     if (!entry) return;

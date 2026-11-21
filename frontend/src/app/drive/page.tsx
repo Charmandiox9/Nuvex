@@ -36,6 +36,9 @@ const operationKeys: Record<Operation, string> = {
   folder: 'drive.op.folder', rename: 'drive.op.rename', move: 'drive.op.move', copy: 'drive.op.copy',
   restore: 'drive.op.restore', purge: 'drive.op.purge', share: 'drive.op.share',
 };
+const isViewableMedia = (row: Entry) => row.kind === 'file'
+  && (row.mime.startsWith('image/') || row.mime.startsWith('video/'))
+  && (row.mediaStatus === 'ready' || row.hasPreview);
 
 export default function Drive() {
   const router = useRouter();
@@ -49,7 +52,7 @@ export default function Drive() {
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<Entry>();
-  const [viewer, setViewer] = useState<{ items: Entry[]; index: number }>();
+  const [viewerId, setViewerId] = useState<string>();
   const [op, setOp] = useState<{ name: Operation; rows: Entry[] }>();
   const [share, setShare] = useState<{ code: string; path: string }>();
   const [operationError, setOperationError] = useState('');
@@ -124,6 +127,8 @@ export default function Drive() {
   };
   const transfers = useTransfers(refresh, t);
   const rows = entries.data?.pages.flatMap((page) => page.items) ?? [];
+  const mediaItems = rows.filter(isViewableMedia);
+  const viewerIndex = viewerId ? mediaItems.findIndex((item) => item.id === viewerId) : -1;
   const active = rows.filter((row) => selected.includes(row.id));
   const detail = previewDetails.data ?? preview;
   const busyMedia = detail && ['processing', 'queued'].includes(detail.mediaStatus);
@@ -144,14 +149,7 @@ export default function Drive() {
       navigate('files');
       return;
     }
-    const media = rows.filter((item) => item.kind === 'file'
-      && (item.mime.startsWith('image/') || item.mime.startsWith('video/'))
-      && (item.mediaStatus === 'ready' || item.hasPreview));
-    const index = media.findIndex((item) => item.id === row.id);
-    if (index >= 0) {
-      setViewer({ items: media, index });
-      return;
-    }
+    if (isViewableMedia(row)) { setViewerId(row.id); return; }
     setPreview(row);
     setOperationError('');
   }
@@ -410,7 +408,10 @@ export default function Drive() {
         </div>}
       </div>
     </dialog>
-    {viewer && <MediaViewer items={viewer.items} index={viewer.index} onClose={() => setViewer(undefined)}
-      onIndexChange={(index) => setViewer((value) => (value ? { ...value, index } : value))} />}
+    {viewerId && viewerIndex >= 0 && <MediaViewer items={mediaItems} index={viewerIndex}
+      onClose={() => setViewerId(undefined)}
+      onIndexChange={(index) => setViewerId(mediaItems[index]?.id)}
+      hasNextPage={Boolean(entries.hasNextPage)}
+      onNeedMore={() => { if (entries.hasNextPage && !entries.isFetchingNextPage) void entries.fetchNextPage(); }} />}
   </main>;
 }
