@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { messages, type Locale } from './catalogs';
+import { setActiveLocale } from '@/lib/format';
 
 export type TFunction = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -20,6 +21,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLocaleState(readLocale());
   }, []);
+
+  useEffect(() => {
+    setActiveLocale(locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);

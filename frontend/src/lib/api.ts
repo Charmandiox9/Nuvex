@@ -1,5 +1,5 @@
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public suggestedName?: string) { super(message); }
+  constructor(public status: number, message: string, public suggestedName?: string, public code?: string) { super(message); }
 }
 
 export async function request<T>(path: string, method = 'GET', data?: unknown, signal?: AbortSignal): Promise<T> {
@@ -13,7 +13,7 @@ export async function request<T>(path: string, method = 'GET', data?: unknown, s
     body: data === undefined ? undefined : binary ? data : JSON.stringify(data),
   });
   const body = response.status === 204 ? undefined : await response.json().catch(() => undefined);
-  if (!response.ok) throw new ApiError(response.status, body?.message ?? 'No se pudo conectar con Nuvex.', body?.suggestedName);
+  if (!response.ok) throw new ApiError(response.status, body?.message ?? 'No se pudo conectar con Nuvex.', body?.suggestedName, body?.code);
   return body as T;
 }
 
