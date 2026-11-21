@@ -1,8 +1,9 @@
-import { BadRequestException, HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { hash, verify } from '@node-rs/argon2';
 import { Secret, TOTP } from 'otpauth';
 import QRCode from 'qrcode';
 import type { Request, Response } from 'express';
+import { AppException } from '../common/errors';
 import { digest, seal, secretHash, token, unseal } from '../common/security';
 import { Database } from '../database/database.service';
 import type { ChangePasswordBody, CodeBody, DisableBody, LoginBody, PasswordBody } from './auth.dto';
@@ -25,7 +26,7 @@ export class AuthService {
       where: { key }, create: { key, hits: 1, expiresAt: new Date((window + 1) * interval) },
       update: { hits: { increment: 1 } },
     });
-    if (count.hits > maximum) throw new HttpException('Demasiados intentos. Vuelve a intentarlo más tarde.', 429);
+    if (count.hits > maximum) throw new AppException('auth.rateLimited', 'Demasiados intentos. Vuelve a intentarlo más tarde.', 429);
   }
 
   async session(req: Request, verified = true) {
@@ -44,7 +45,7 @@ export class AuthService {
     await this.limit('login-account', username, 12);
     const owner = await this.db.client.owner.findUnique({ where: { username } });
     const valid = await verify(owner?.passwordHash ?? await this.dummyHash, body.password);
-    if (!valid || !owner) throw new UnauthorizedException('Usuario o contraseña incorrectos.');
+    if (!valid || !owner) throw new AppException('auth.invalidCredentials', 'Usuario o contraseña incorrectos.', 401);
 
     const raw = token();
     const authenticator = owner.totpSecret ? undefined : new TOTP({
@@ -68,7 +69,7 @@ export class AuthService {
     const raw = token();
     const codes = await this.db.client.$transaction(async (tx) => {
       const owner = await tx.owner.findUniqueOrThrow({ where: { id: pending.ownerId } });
-      const invalid = () => new UnauthorizedException('Código inválido o ya utilizado.');
+      const invalid = () => new AppException('auth.invalidCode', 'Código inválido o ya utilizado.', 401);
       let codes: string[] = [];
       const storedSecret = owner.totpSecret ?? pending.enrollment;
       if (recovery) {
@@ -138,7 +139,7 @@ export class AuthService {
 
   private async requirePassword(owner: { id: string; passwordHash: string }, password: string) {
     if (!(await verify(owner.passwordHash, password))) {
-      throw new UnauthorizedException('La contraseña actual no es correcta.');
+      throw new AppException('auth.wrongPassword', 'La contraseña actual no es correcta.', 401);
     }
   }
 
@@ -185,12 +186,12 @@ export class AuthService {
 
   async confirmTotp(req: Request, input: CodeBody) {
     const current = await this.session(req);
-    if (!current.enrollment) throw new BadRequestException('No hay un enrolamiento pendiente.');
+    if (!current.enrollment) throw new AppException('auth.noEnrollment', 'No hay un enrolamiento pendiente.', 400);
     await this.limit('account-totp-confirm', current.ownerId, 10);
     const timestamp = Date.now();
     const delta = new TOTP({ secret: Secret.fromBase32(unseal(current.enrollment)) })
       .validate({ token: input.code.trim(), window: 1, timestamp });
-    if (delta === null) throw new UnauthorizedException('Código inválido.');
+    if (delta === null) throw new AppException('auth.invalidCode', 'Código inválido.', 401);
     const step = BigInt(Math.floor(timestamp / 30_000) + delta);
     const codes = Array.from({ length: 10 }, () => token(10).toUpperCase());
     await this.db.client.$transaction(async (tx) => {
@@ -211,10 +212,10 @@ export class AuthService {
     const owner = await this.currentOwner(req);
     await this.limit('account-2fa', owner.id, 10);
     await this.requirePassword(owner, input.currentPassword);
-    if (!owner.totpSecret) throw new BadRequestException('La verificación en dos pasos no está activa.');
+    if (!owner.totpSecret) throw new AppException('auth.twoFactorInactive', 'La verificación en dos pasos no está activa.', 400);
     const delta = new TOTP({ secret: Secret.fromBase32(unseal(owner.totpSecret)) })
       .validate({ token: input.code.trim(), window: 1, timestamp: Date.now() });
-    if (delta === null) throw new UnauthorizedException('Código inválido.');
+    if (delta === null) throw new AppException('auth.invalidCode', 'Código inválido.', 401);
     await this.db.client.$transaction(async (tx) => {
       await tx.owner.update({
         where: { id: owner.id },

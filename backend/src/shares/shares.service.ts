@@ -1,9 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import QRCode from 'qrcode';
 import { AuthService } from '../auth/auth.service';
 import { cookieOptions } from '../auth/session-cookie';
 import { sendEmail } from '../common/email';
+import { AppException } from '../common/errors';
 import { digest, secretHash, token } from '../common/security';
 import { Database } from '../database/database.service';
 import { serializeEntry } from '../files/file-entry';
@@ -47,9 +48,9 @@ export class SharesService {
   async send(ownerId: string, id: string, to: string, code: string) {
     await this.auth.limit('share-send', ownerId, 20);
     const share = await this.db.client.share.findFirst({ where: { id, ownerId, revokedAt: null } });
-    if (!share || share.expiresAt <= new Date()) throw new NotFoundException('Enlace no disponible.');
+    if (!share || share.expiresAt <= new Date()) throw new AppException('share.unavailable', 'Enlace no disponible.', 404);
     if (share.codeHash !== secretHash('share', code.trim().toUpperCase())) {
-      throw new ForbiddenException('El código no corresponde al enlace.');
+      throw new AppException('share.codeMismatch', 'El código no corresponde al enlace.', 403);
     }
     const key = process.env.RESEND_API_KEY;
     const from = process.env.NUVEX_ALERT_FROM;
@@ -90,13 +91,13 @@ export class SharesService {
     const expiresAt = await this.db.client.$transaction(async (tx) => {
       const now = new Date();
       const share = await tx.share.findUnique({ where: { id } });
-      if (!share) throw new ForbiddenException('Enlace o código no disponible.');
+      if (!share) throw new AppException('share.unavailable', 'Enlace o código no disponible.', 403);
       await this.files.active(share.ownerId, share.entryId, tx);
       const updated = await tx.share.updateMany({
         where: { id, codeHash: secretHash('share', code.trim().toUpperCase()), revokedAt: null, expiresAt: { gt: now }, remaining: { gt: 0 } },
         data: { remaining: { decrement: 1 } },
       });
-      if (!updated.count) throw new ForbiddenException('Enlace o código no disponible.');
+      if (!updated.count) throw new AppException('share.unavailable', 'Enlace o código no disponible.', 403);
       const expiresAt = new Date(Math.min(share.expiresAt.getTime(), now.getTime() + 30 * 60_000));
       await tx.guestSession.create({ data: { tokenHash: digest(raw), shareId: id, expiresAt } });
       await tx.audit.create({ data: { ownerId: share.ownerId, action: 'share.redeemed', target: id } });
@@ -108,14 +109,14 @@ export class SharesService {
 
   async allowed(id: string, req: Request, entryId?: string) {
     const raw: unknown = req.cookies[guestCookie];
-    if (typeof raw !== 'string') throw new ForbiddenException('Introduce el código del enlace.');
+    if (typeof raw !== 'string') throw new AppException('share.codeRequired', 'Introduce el código del enlace.', 403);
     const db = this.db.client;
     const [share, session] = await Promise.all([
       db.share.findUnique({ where: { id } }),
       db.guestSession.findFirst({ where: { tokenHash: digest(raw), shareId: id, expiresAt: { gt: new Date() } } }),
     ]);
     if (!share || !session || share.revokedAt || share.expiresAt <= new Date()) {
-      throw new ForbiddenException('Tu acceso ha vencido o se ha revocado.');
+      throw new AppException('share.expired', 'Tu acceso ha vencido o se ha revocado.', 403);
     }
     const root = await this.files.active(share.ownerId, share.entryId);
     const row = entryId && entryId !== root.id ? await this.files.active(share.ownerId, entryId) : root;
@@ -154,7 +155,7 @@ export class SharesService {
   async content(shareId: string, id: string, req: Request, res: Response, mode: string) {
     const { share, session, row } = await this.allowed(shareId, req, id);
     if (row.kind !== 'file') throw new NotFoundException('Archivo no disponible.');
-    if (mode === 'download' && !share.allowDownload) throw new ForbiddenException('El propietario deshabilitó las descargas.');
+    if (mode === 'download' && !share.allowDownload) throw new AppException('share.downloadsDisabled', 'El propietario deshabilitó las descargas.', 403);
     if (share.allowDownload) return this.files.content(share.ownerId, id, mode, req, res);
     if (row.mime.startsWith('audio/')) {
       if (!row.objectKey) throw new NotFoundException('Archivo no disponible.');

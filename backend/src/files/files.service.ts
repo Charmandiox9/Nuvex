@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import type { Entry, Prisma } from '../../prisma/generated/client';
 import { serialTransaction } from '../../prisma/transaction';
 import { Database } from '../database/database.service';
+import { AppException } from '../common/errors';
 import { QueueService } from '../queue/queue.service';
 import { partSize, quotaBytes, Storage } from '../storage/storage';
 import { cleanName, mediaKind, serializeEntry } from './file-entry';
@@ -45,7 +46,7 @@ export class FilesService {
 
   async entry(ownerId: string, id: string, db: Db = this.db.client, trashed = false) {
     const row = await db.entry.findFirst({ where: { id, ownerId, ...(!trashed ? { trashedAt: null } : {}) } });
-    if (!row) throw new NotFoundException('Elemento no encontrado.');
+    if (!row) throw new AppException('files.notFound', 'Elemento no encontrado.', 404);
     return row;
   }
 
@@ -76,7 +77,7 @@ export class FilesService {
     while (await db.entry.findFirst({ where: { ...where, name: suggestedName }, select: { id: true } })) {
       suggestedName = base + ' (' + ++index + ')';
     }
-    throw new ConflictException({ statusCode: 409, message: 'Ya existe un elemento con ese nombre.', suggestedName });
+    throw new AppException('files.conflict', 'Ya existe un elemento con ese nombre.', 409, { suggestedName });
   }
 
   async list(ownerId: string, parentId: string, search: string, view: string, cursor?: string, sort = 'name', filters: ListFilters = {}) {
@@ -201,7 +202,7 @@ export class FilesService {
 
   async remove(ownerId: string, id: string, confirmed: boolean) {
     const row = await this.entry(ownerId, id, this.db.client, true);
-    if (!row.trashedAt || !confirmed) throw new BadRequestException('Confirma el borrado de un elemento de la papelera.');
+    if (!row.trashedAt || !confirmed) throw new AppException('files.confirmPurge', 'Confirma el borrado de un elemento de la papelera.', 400);
     const claimed = await this.db.client.entry.updateMany({ where: { id, trashedAt: { not: null } }, data: { purging: true } });
     if (!claimed.count) throw new ConflictException('El elemento ya fue restaurado.');
     await this.queue.enqueue('purge', id);
@@ -336,14 +337,14 @@ export class FilesService {
 
   async stream(res: Response, req: Request, key: string, mime: string, download?: string) {
     let range = req.get('range');
-    if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) throw new HttpException('Rango inválido.', 416);
+    if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) throw new AppException('files.range', 'Rango inválido.', 416);
     if (range === 'bytes=0-' && req.method === 'HEAD') range = undefined;
     let object: Awaited<ReturnType<Storage['read']>>;
     try {
       object = await this.storage.read(key, range);
     } catch (error) {
       const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
-      if (status === 416) throw new HttpException('Rango fuera del archivo.', 416);
+      if (status === 416) throw new AppException('files.range', 'Rango fuera del archivo.', 416);
       if (status === 404) throw new NotFoundException('Archivo no disponible.');
       throw error;
     }
@@ -363,12 +364,12 @@ export class FilesService {
     if (mode === 'preview' && row.previewKey) return this.stream(res, req, row.previewKey, 'image/webp');
     if (mode === 'preview' && row.videoKey) return this.stream(res, req, row.videoKey, row.videoKey === row.objectKey ? row.mime : 'video/mp4');
     if (mode === 'preview' && row.mime.startsWith('audio/')) return this.stream(res, req, row.objectKey, row.mime);
-    throw new UnsupportedMediaTypeException('La vista previa todavía no está disponible.');
+    throw new AppException('files.previewUnavailable', 'La vista previa todavía no está disponible.', 415);
   }
 
   async archive(ownerId: string, id: string, res: Response) {
     const root = await this.active(ownerId, id);
-    if (root.kind !== 'folder') throw new BadRequestException('Solo se pueden descargar carpetas.');
+    if (root.kind !== 'folder') throw new AppException('files.notFolder', 'Solo se pueden descargar carpetas.', 400);
     const maxEntries = 100_000;
     const nodes: { row: Entry; path: string }[] = [];
     const queue: { row: Entry; path: string }[] = [{ row: root, path: zipSegment(root.name) }];
