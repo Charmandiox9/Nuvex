@@ -164,6 +164,7 @@ export function Imports({ parentId, folderName }: { parentId: string; folderName
           })}>{t(selected.length === 1 ? 'panel.saveFilesOne' : 'panel.saveFilesOther', { count: selected.length })}</button>
           {deepseek.data?.configured && <button className="secondary" disabled={!selected.length || busy} onClick={() => setShowConsent(!showConsent)}>{t('panel.suggestDeepseek')}</button>}
         </div>
+        {deepseek.data?.configured && <p>{t('panel.deepseekHint')}</p>}
         {showConsent && <div className="consent">
           <p>{t('panel.consentText')}</p>
           <ul>{suggestionUrls.map((url) => <li key={url}>{url}</li>)}</ul>
