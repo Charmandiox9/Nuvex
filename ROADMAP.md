@@ -73,7 +73,9 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Frontend (Vitest): `lib/format`, i18n (`interpolate`) y `lib/pool`. El script raíz `test` ejecuta ambos y el CI lo usa.
 
 ### 11. Vista de auditoría
-- [ ] `GET /audit` paginado (owner) y panel en Ajustes.
+- [x] `GET /audit` paginado por cursor (solo owner).
+- [x] Panel «Actividad reciente» en Ajustes con acciones traducidas.
+- [x] Test de integración de auditoría.
 
 ### 12. Observabilidad
 - [ ] Logs estructurados con redacción de secretos, IDs de petición y `/health` profundo (DB/S3/Redis).
