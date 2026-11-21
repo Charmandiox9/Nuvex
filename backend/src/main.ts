@@ -6,8 +6,9 @@ import { JsonLogger, requestLogger } from './common/logging';
 import { configure, contract } from './http/setup';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: new JsonLogger() });
-  app.use(requestLogger);
+  const json = process.env.NUVEX_LOG_JSON === '1';
+  const app = await NestFactory.create(AppModule, json ? { logger: new JsonLogger() } : {});
+  if (json) app.use(requestLogger);
   configure(app);
   if (process.env.SWAGGER_ENABLED !== '0') SwaggerModule.setup('api/docs', app, contract(app));
   app.enableShutdownHooks();

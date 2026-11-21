@@ -20,8 +20,16 @@ function redactObject(input: Record<string, unknown>) {
 }
 
 export function log(level: Level, message: string, meta: Record<string, unknown> = {}) {
-  const line = JSON.stringify({ time: new Date().toISOString(), level, message, ...redactObject(meta) });
-  (level === 'info' ? process.stdout : process.stderr).write(line + '\n');
+  const data = redactObject(meta);
+  const stream = level === 'info' ? process.stdout : process.stderr;
+  if (process.env.NUVEX_LOG_JSON === '1') {
+    stream.write(JSON.stringify({ time: new Date().toISOString(), level, message, ...data }) + '\n');
+    return;
+  }
+  const suffix = Object.entries(data)
+    .map(([key, value]) => key + '=' + (value && typeof value === 'object' ? JSON.stringify(value) : String(value)))
+    .join(' ');
+  stream.write('[' + new Date().toISOString() + '] ' + level.toUpperCase() + ' ' + message + (suffix ? ' ' + suffix : '') + '\n');
 }
 
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
