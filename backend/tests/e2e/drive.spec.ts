@@ -51,11 +51,41 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   await page.getByLabel('Nombre', { exact: true }).fill('Documentos');
   await page.getByRole('dialog').getByRole('button', { name: 'Nueva carpeta' }).click();
   await page.getByRole('button', { name: /Documentos/ }).click();
-  const [picker] = await Promise.all([
-    page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Subir archivos' }).click(),
-  ]);
-  await picker.setFiles({ name: 'nota.txt', mimeType: 'text/plain', buffer: Buffer.from('Nuvex') });
-  await expect(page.getByText(/Completada/)).toBeVisible();
+  let releaseParts = () => {};
+  const partsPaused = new Promise<void>((resolve) => { releaseParts = resolve; });
+  const attempts: string[] = [];
+  const firstParts: string[] = [];
+  const blockBytes = 8 * 1024 ** 2;
+  await page.route('**/api/v1/uploads/*/parts/*', async (route) => {
+    const request = route.request();
+    if (request.url().endsWith('/parts/2')) {
+      attempts.push(request.url());
+      if (attempts.length === 1) { await route.abort(); return; }
+    } else {
+      if (request.postDataBuffer()?.length === blockBytes) firstParts.push(request.url());
+      await partsPaused;
+    }
+    await route.continue();
+  });
+  const choose = async (files: { name: string; mimeType: string; buffer: Buffer }[]) => {
+    const [picker] = await Promise.all([
+      page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Subir archivos' }).click(),
+    ]);
+    await picker.setFiles(files);
+  };
+  await choose(['nota.txt', 'apuntes.txt', 'lista.txt'].map((name) => ({ name, mimeType: 'text/plain', buffer: Buffer.from(name) })));
+  await expect(page.getByRole('heading', { name: 'Documentos' })).toBeVisible();
+  await choose([{ name: 'reintento.txt', mimeType: 'text/plain', buffer: Buffer.alloc(blockBytes + 1, 65) }]);
+  const summary = page.getByRole('button', { name: /^Ver transferencias/ });
+  await expect(summary).toHaveText(/En curso: 3 · En cola: 1/);
+  await summary.click();
+  await expect(page.getByRole('heading', { name: 'Transferencias', exact: true })).toBeVisible();
+  releaseParts();
+  await page.getByRole('button', { name: 'Reintentar reintento.txt' }).click();
+  await expect(page.getByText(/Completada/)).toHaveCount(4);
+  expect(attempts).toHaveLength(2);
+  expect(attempts[1]).toBe(attempts[0]);
+  expect(firstParts).toEqual([attempts[0].replace(/2$/, '1')]);
   await page.getByRole('button', { name: 'Mis archivos', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Seleccionar nota.txt' }).check();
   await page.getByRole('button', { name: 'Renombrar' }).click();

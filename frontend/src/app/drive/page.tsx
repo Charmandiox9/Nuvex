@@ -22,7 +22,7 @@ import { MediaViewer } from '@/components/media-viewer';
 import { Pagination } from '@/components/pagination';
 import { RowMenu } from '@/components/row-menu';
 import { Imports, LinkPanel, Settings } from './panels';
-import { Transfers } from '@/components/transfers';
+import { TransferSummary, Transfers } from '@/components/transfers';
 import { useTransfers } from '@/hooks/use-transfers';
 import { useI18n } from '@/i18n/provider';
 
@@ -399,7 +399,7 @@ export default function Drive() {
     event.preventDefault();
     setFileDragActive(false);
     void collectDroppedFiles(event.dataTransfer).then((files) => {
-      if (files.length && view !== 'trash') { navigate('transfers'); void transfers.add(files, parentId); }
+      if (files.length && view !== 'trash') transfers.add(files, parentId);
     });
   }
 
@@ -435,7 +435,10 @@ export default function Drive() {
             </button>
             <div className="breadcrumbs"><span>Drive</span><ChevronRight size={14} /><span>{t(sections.find((item) => item.id === view)?.key ?? '')}</span></div>
           </div>
-          {showListing && <label className="search"><Search size={17} /><input type="search" aria-label={t('drive.searchAria')} placeholder={t('drive.searchPlaceholder')} value={search} onChange={(event) => { setSearch(event.target.value); setSelected([]); }} /></label>}
+          <div className="topbar-tools">
+            {showListing && <label className="search"><Search size={17} /><input type="search" aria-label={t('drive.searchAria')} placeholder={t('drive.searchPlaceholder')} value={search} onChange={(event) => { setSearch(event.target.value); setSelected([]); }} /></label>}
+            <TransferSummary transfers={transfers.transfers} open={() => navigate('transfers')} />
+          </div>
         </div>
       </header>
       <div className="workspace-body">
@@ -454,11 +457,11 @@ export default function Drive() {
         </header>
         <input ref={picker} type="file" hidden multiple onChange={(event) => {
           const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = '';
-          if (files.length) { navigate('transfers'); void transfers.add(files, parentId); }
+          transfers.add(files, parentId);
         }} />
         <input ref={(element) => { folderPicker.current = element; element?.setAttribute('webkitdirectory', ''); }} type="file" hidden multiple onChange={(event) => {
           const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = '';
-          if (files.length) { navigate('transfers'); void transfers.add(files, parentId); }
+          transfers.add(files, parentId);
         }} />
         <input ref={iconPicker} type="file" accept="image/*" hidden onChange={(event) => {
           const files = event.currentTarget.files; event.currentTarget.value = '';
@@ -558,7 +561,7 @@ export default function Drive() {
           <Pagination page={pageIndex} pages={loadedPages} hasNext={Boolean(entries.hasNextPage)}
             busy={entries.isFetchingNextPage} onSelect={(target) => void goToPage(target)} />
         </div>}
-        {view === 'transfers' && <div className="panel-column"><Transfers transfers={transfers.transfers} cancel={transfers.cancel} /></div>}
+        {view === 'transfers' && <div className="panel-column"><Transfers transfers={transfers.transfers} cancel={transfers.cancel} retry={transfers.retry} /></div>}
         {view === 'imports' && <div className="panel-column"><Imports parentId={parentId} folderName={folderName} /></div>}
         {view === 'links' && <div className="panel-column"><LinkPanel /></div>}
         {view === 'settings' && <Settings />}
