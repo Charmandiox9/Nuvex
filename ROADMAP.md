@@ -62,8 +62,9 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Test de integración de códigos. (Algunos errores aún sin `code`; el fallback los cubre.)
 
 ### 9. PWA + arrastrar carpetas del sistema
-- [ ] `manifest`, iconos y service worker mínimo (usar `modern-web-guidance`).
-- [ ] Drop de carpetas vía `webkitGetAsEntry`, acotando profundidad/tamaño.
+- [x] PWA: manifest, iconos (192/512 + SVG) y service worker mínimo (cachea solo estáticos; registro en producción).
+- [x] Drop de carpetas del sistema con `webkitGetAsEntry` recursivo, con límites de 5000 archivos y profundidad 32.
+- [x] e2e de escritorio y móvil verde.
 
 ## Fase 3 · Calidad e infraestructura
 
