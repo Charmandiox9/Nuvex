@@ -37,6 +37,7 @@ export class SharesService {
     const share = await this.db.client.share.create({ data: {
       ownerId, entryId: input.entryId, codeHash: secretHash('share', code), remaining: input.uses, maxUses: input.uses,
       expiresAt: new Date(Date.now() + input.hours * 3_600_000), allowDownload: input.allowDownload,
+      maxDownloads: input.maxDownloads ?? null,
     } });
     const origin = process.env.PUBLIC_ORIGIN ?? 'http://localhost:3000';
     return {
@@ -156,6 +157,13 @@ export class SharesService {
     const { share, session, row } = await this.allowed(shareId, req, id);
     if (row.kind !== 'file') throw new NotFoundException('Archivo no disponible.');
     if (mode === 'download' && !share.allowDownload) throw new AppException('share.downloadsDisabled', 'El propietario deshabilitó las descargas.', 403);
+    if (mode === 'download' && share.maxDownloads != null) {
+      const claimed = await this.db.client.share.updateMany({
+        where: { id: shareId, downloads: { lt: share.maxDownloads } },
+        data: { downloads: { increment: 1 } },
+      });
+      if (!claimed.count) throw new AppException('share.downloadsExhausted', 'Se alcanzó el límite de descargas de este enlace.', 403);
+    }
     if (share.allowDownload) return this.files.content(share.ownerId, id, mode, req, res);
     if (row.mime.startsWith('audio/')) {
       if (!row.objectKey) throw new NotFoundException('Archivo no disponible.');

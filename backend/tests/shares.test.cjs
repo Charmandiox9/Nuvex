@@ -63,4 +63,20 @@ suite('Enlaces compartidos: QR y envio', () => {
       await write(client, 'post', '/shares/' + share.body.id + '/send').send({ to: 'alguien@ejemplo.com', code: share.body.code }).expect(503);
     }
   });
+
+  test('limita las descargas del enlace', async () => {
+    const bytes = Buffer.from('documento');
+    const upload = await write(client, 'post', '/uploads').send({ name: 'limite.txt', mime: 'text/plain', size: bytes.length, parentId: '', fingerprint: 'limit' }).expect(201);
+    const path = '/uploads/' + upload.body.id;
+    await write(client, 'put', path + '/parts/1').set('Content-Type', 'application/octet-stream').send(bytes).expect(204);
+    const entry = await write(client, 'post', path + '/complete').send({}).expect(201);
+
+    const share = await write(client, 'post', '/shares').send({ entryId: entry.body.id, uses: 3, allowDownload: true, maxDownloads: 1 }).expect(201);
+    const guest = request.agent(server);
+    const guestPath = '/guest/' + share.body.id;
+    await write(guest, 'post', guestPath + '/redeem').send({ code: share.body.code }).expect(200);
+    await guest.get(prefix + guestPath + '/content/' + entry.body.id + '?mode=download').expect(200);
+    const blocked = await guest.get(prefix + guestPath + '/content/' + entry.body.id + '?mode=download').expect(403);
+    expect(blocked.body.code).toBe('share.downloadsExhausted');
+  });
 });

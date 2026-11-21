@@ -82,6 +82,8 @@ model Share {
   remaining Int
   maxUses Int
   allowDownload Boolean @default(false)
+  downloads Int @default(0)
+  maxDownloads Int?
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())
