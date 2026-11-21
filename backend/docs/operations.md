@@ -17,6 +17,8 @@ Ajusta las rutas a `NUVEX_DATA` y `NUVEX_BACKUP_STATE`. La API y el worker usan 
 
 Las imágenes de la API y del worker incluyen `libjxl-tools`. En desarrollo en el host, instala `cjxl` y `djxl` y ponlos en el `PATH` para probar la compresión de JPEG de hasta 16 MiB. El worker registra `originalBytes` y `storedBytes` cuando sustituye un JPEG. El espacio físico recuperado puede tardar en reflejarse hasta que SeaweedFS compacte sus volúmenes.
 
+El panel Almacenamiento usa la medición del worker sobre `/data-health`, el montaje de solo lectura de los datos de SeaweedFS en Compose. Se mide al arrancar y en el mantenimiento periódico, aproximadamente cada minuto. El panel muestra la medición como no disponible si supera cinco minutos. En desarrollo en el host, define `NUVEX_DISK_PATH` en el entorno del worker con una ruta del mismo volumen que SeaweedFS para habilitar la medición.
+
 ## Red, arranque y actualizaciones
 
 - Por defecto Caddy escucha en loopback. Para la red local asigna un nombre DNS interno al PC, configura `NUVEX_HOST`, `PUBLIC_ORIGIN=https://<nombre>` y deja `NUVEX_BIND` en la IP LAN del PC. Permite el puerto 443 solo desde la red autorizada.

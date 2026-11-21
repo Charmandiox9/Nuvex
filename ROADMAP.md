@@ -5,7 +5,7 @@ Plan de trabajo por prioridad. Mantén las casillas y el estado de las entregas 
 ## Próximas entregas
 
 1. **Transferencias**. Implementada y verificada en escritorio y móvil. El explorador permanece abierto al subir. La cola admite varios lotes con un máximo de tres archivos activos y muestra el progreso y el reintento. La prueba de navegador interrumpe el segundo bloque y verifica que el primero se conserva al reintentar.
-2. **Almacenamiento**. Mostrar cuota, espacio libre real y uso de la papelera. Añadir los archivos más grandes y, cuando exista medición fiable, el ahorro por JPEG. Validar con el volumen de SeaweedFS.
+2. **Almacenamiento**. Cuota, espacio libre real, tamaño de la papelera y diez archivos activos más grandes implementados. Verificado en escritorio y móvil con una lectura del volumen de SeaweedFS. Queda pendiente una medición agregada fiable del ahorro por JPEG.
 3. **Navegación y móvil**. Conservar la carpeta, búsqueda y filtros en la URL. Mostrar la ubicación en los resultados y agrupar filtros y acciones en pantallas pequeñas.
 4. **Duplicados exactos**. Avisar cuando coincida el contenido verificado. Permitir omitir o conservar ambos archivos.
 5. **Enlaces para invitados**. Aclarar el vencimiento y permiso de descarga. Mostrar mensajes específicos para enlaces vencidos, revocados o sin canjes.
