@@ -8,9 +8,9 @@ Principios para todo el plan (según `AGENTS.md`):
 - **Definición de hecho por entrega**: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` (+ `pnpm test:e2e` si toca flujos), docs (`backend/docs/api.md`, Swagger), claves i18n es/en y tests de la lógica no trivial.
 
 ## Fase 0 · Preparación
-- [ ] Verificar línea base: `pnpm dev:infra`, `pnpm migrate`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
-- [ ] Establecer commits base (el repo parte con un commit inicial vacío). Los commits base son por área (no por feature retroactivo, porque el código ya estaba construido); a partir de aquí, un commit por feature.
-- [ ] Crear rama por entrega (`feat/...`).
+- [x] Verificar línea base: `pnpm dev:infra`, `pnpm migrate`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
+- [x] Establecer commits base por área (`chore`, `feat(backend)`, `feat(web)`, `docs`). A partir de aquí, un commit por feature.
+- [ ] Crear rama por entrega (`feat/...`) al iniciar la Fase 1.
 
 ## Fase 1 · Prioridad alta
 
