@@ -449,7 +449,7 @@ export default function Drive() {
         {view === 'transfers' && <div className="panel-column"><Transfers transfers={transfers.transfers} cancel={transfers.cancel} /></div>}
         {view === 'imports' && <div className="panel-column"><Imports parentId={parentId} folderName={folderName} /></div>}
         {view === 'links' && <div className="panel-column"><LinkPanel /></div>}
-        {view === 'settings' && <div className="settings-masonry"><Settings /></div>}
+        {view === 'settings' && <Settings />}
       </div>
     </section>
     <dialog ref={dialog} onCancel={(event) => { if (busy) event.preventDefault(); else clearDialog(); }} onClose={clearDialog} aria-labelledby="dialog-title">

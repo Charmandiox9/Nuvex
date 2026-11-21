@@ -87,7 +87,7 @@ Definidos con `light-dark(claro, oscuro)` en `:root` (`globals.css`). Usa siempr
 - **Drive**: barra lateral de `236px` + área de trabajo. Por debajo de `850px` la barra colapsa a `67px` solo-iconos.
 - Breakpoints: `850px` y `530px`. En móvil (`530px`) la barra superior apila, la búsqueda ocupa el ancho y las tarjetas de candidatos pasan a una columna.
 - Usa `clamp()` para tamaños fluidos; no añadas breakpoints nuevos si un `clamp()` resuelve el caso.
-- **Gutters y densidad**: `.workspace-body` comparte el mismo padding horizontal que la barra superior, así el título y el breadcrumb quedan alineados. **Ajustes** usa `.settings-masonry` (dos columnas balanceadas, máx. ~1080 px) para aprovechar el ancho; Enlaces, Importaciones y Transferencias usan `.panel-column` (máx. ~880 px). Evita paneles a todo el ancho y formularios demasiado anchos (`.security-form` y `#sec-secret`, máx. 460 px). Los botones sueltos dentro de un panel se ajustan a su contenido (`justify-self: start`).
+- **Gutters y densidad**: `.workspace-body` comparte el mismo padding horizontal que la barra superior, así el título y el breadcrumb quedan alineados. **Ajustes** usa `.settings-grid` (rejilla de dos columnas, máx. ~1080 px; la tarjeta de Integraciones ocupa ambas con `.settings-wide`, y en ≤760 px pasa a una columna); Enlaces, Importaciones y Transferencias usan `.panel-column` (máx. ~880 px). Evita paneles a todo el ancho y formularios demasiado anchos (`.security-form` y `#sec-secret`, máx. 460 px). Los botones sueltos dentro de un panel se ajustan a su contenido (`justify-self: start`).
 
 ## Accesibilidad
 

@@ -10,7 +10,7 @@ import { useI18n } from '@/i18n/provider';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageToggle } from '@/components/language-toggle';
 import type { Locale } from '@/i18n/catalogs';
-import { Security } from './security';
+import { PasswordPanel, TwoFactorPanel } from './security';
 import { Audit } from './audit';
 
 type Link = { id: string; entryId: string; expiresAt: string; revokedAt?: string; remaining: number; maxUses: number; entryName?: string; lastRedeemedAt?: string };
@@ -52,39 +52,50 @@ export function Settings() {
       await Promise.all([sessions.refetch(), deepseek.refetch()]);
     } catch (error) { setError(message(error)); }
   }
+  async function revokeOthers() {
+    try {
+      const result = await api<{ revoked: number }>('/auth/sessions/revoke-all', 'POST');
+      sileo.success({ title: t('security.revokedMany', { count: result.revoked }) });
+      await sessions.refetch();
+    } catch (error) { setError(message(error)); }
+  }
   return <>
     {error && <p className="error" role="alert">{error}</p>}
-    <section className="panel">
-      <h2><Palette size={20} /> {t('panel.appearance')}</h2>
-      <ThemeToggle />
-    </section>
-    <section className="panel">
-      <h2><Languages size={20} /> {t('panel.language')}</h2>
-      <LanguageToggle />
-    </section>
-    <section className="panel">
-      <h2><Monitor size={20} /> {t('panel.sessions')}</h2>
-      {sessions.error && <p className="error">{message(sessions.error)}</p>}
-      {sessions.data?.map((session) => <article className="transfer" key={session.id}>
-        <div><strong>{session.current ? t('panel.thisSession') : t('panel.otherSession')}</strong><small>{date(session.createdAt, locale)} · {t('panel.expiresAt', { date: date(session.expiresAt, locale) })}</small></div>
-        {!session.current && <button className="secondary" onClick={() => action('/auth/sessions/' + session.id, 'DELETE')}>{t('panel.closeSession')}</button>}
-      </article>)}
-    </section>
-    <Security />
-    <Audit />
-    <section className="panel">
-      <h2><KeyRound size={20} /> {t('panel.deepseek')}</h2>
-      <p>{deepseek.data?.configured ? t('panel.deepseekOn') : t('panel.deepseekOff')}</p>
-      <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void action('/imports/deepseek', 'PUT', { key }); }}>
-        <label htmlFor="deepseek-key">{t('panel.apiKey')}</label>
-        <input id="deepseek-key" type="password" value={key} onChange={(event) => setKey(event.target.value)} minLength={10} maxLength={250} required autoComplete="off" />
-        <button className="primary">{deepseek.data?.configured ? t('panel.replaceKey') : t('panel.saveKey')}</button>
-        {deepseek.data?.configured && <>
-          <button type="button" className="secondary" onClick={() => action('/imports/deepseek/test', 'POST')}>{t('panel.test')}</button>
-          <button type="button" className="icon-button" aria-label={t('panel.deleteKey')} onClick={() => action('/imports/deepseek', 'DELETE')}><Trash2 size={17} /></button>
-        </>}
-      </form>
-    </section>
+    <div className="settings-grid">
+      <section className="panel">
+        <h2><Palette size={20} /> {t('panel.appearance')}</h2>
+        <ThemeToggle />
+      </section>
+      <section className="panel">
+        <h2><Languages size={20} /> {t('panel.language')}</h2>
+        <LanguageToggle />
+      </section>
+      <PasswordPanel />
+      <TwoFactorPanel />
+      <section className="panel">
+        <h2><Monitor size={20} /> {t('panel.sessions')}</h2>
+        {sessions.error && <p className="error">{message(sessions.error)}</p>}
+        {sessions.data?.map((session) => <article className="transfer" key={session.id}>
+          <div><strong>{session.current ? t('panel.thisSession') : t('panel.otherSession')}</strong><small>{date(session.createdAt, locale)} · {t('panel.expiresAt', { date: date(session.expiresAt, locale) })}</small></div>
+          {!session.current && <button className="secondary" onClick={() => action('/auth/sessions/' + session.id, 'DELETE')}>{t('panel.closeSession')}</button>}
+        </article>)}
+        <button className="secondary" onClick={() => void revokeOthers()}>{t('security.revokeOthers')}</button>
+      </section>
+      <Audit />
+      <section className="panel settings-wide">
+        <h2><KeyRound size={20} /> {t('panel.deepseek')}</h2>
+        <p>{deepseek.data?.configured ? t('panel.deepseekOn') : t('panel.deepseekOff')}</p>
+        <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void action('/imports/deepseek', 'PUT', { key }); }}>
+          <label htmlFor="deepseek-key">{t('panel.apiKey')}</label>
+          <input id="deepseek-key" type="password" value={key} onChange={(event) => setKey(event.target.value)} minLength={10} maxLength={250} required autoComplete="off" />
+          <button className="primary">{deepseek.data?.configured ? t('panel.replaceKey') : t('panel.saveKey')}</button>
+          {deepseek.data?.configured && <>
+            <button type="button" className="secondary" onClick={() => action('/imports/deepseek/test', 'POST')}>{t('panel.test')}</button>
+            <button type="button" className="icon-button" aria-label={t('panel.deleteKey')} onClick={() => action('/imports/deepseek', 'DELETE')}><Trash2 size={17} /></button>
+          </>}
+        </form>
+      </section>
+    </div>
   </>;
 }
 
