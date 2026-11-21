@@ -4,6 +4,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import type { Request } from 'express';
 import { AuthModule } from './auth/auth.module';
+import { AuditModule } from './audit/audit.module';
 import { FilesModule } from './files/files.module';
 import { SharesModule } from './shares/shares.module';
 import { ImportsModule } from './imports/imports.module';
@@ -21,6 +22,7 @@ import { HealthModule } from './health/health.module';
     FilesModule,
     SharesModule,
     ImportsModule,
+    AuditModule,
   ],
 })
 export class AppModule {}
