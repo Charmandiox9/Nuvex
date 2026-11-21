@@ -35,7 +35,8 @@ test.afterAll(async () => {
 });
 
 test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, browser }, info) => {
-  await page.goto('/');
+  await page.goto('/drive/storage');
+  await expect(page).toHaveURL(/\?next=%2Fdrive%2Fstorage$/);
   expect((await page.request.get('/api/v1/storage/overview')).status()).toBe(401);
   await page.screenshot({ path: info.outputPath('inicio.png') });
   await page.getByLabel('Usuario', { exact: true }).fill(input.username);
@@ -47,11 +48,39 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   await page.getByLabel('Código de verificación').fill(code);
   await page.getByRole('button', { name: 'Verificar y entrar' }).click();
   await page.getByRole('button', { name: 'Abrir mi drive' }).click();
+  await expect(page).toHaveURL(/\/drive\/storage$/);
+  const navigation = page.getByRole('navigation', { name: 'Drive' });
+  await navigation.getByRole('link', { name: 'Mis archivos' }).click();
   await expect(page.getByRole('heading', { name: 'Mis archivos' })).toBeVisible();
   await page.getByRole('button', { name: 'Nueva carpeta' }).click();
   await page.getByLabel('Nombre', { exact: true }).fill('Documentos');
   await page.getByRole('dialog').getByRole('button', { name: 'Nueva carpeta' }).click();
-  await page.getByRole('button', { name: /Documentos/ }).click();
+  const folderLink = page.getByRole('link', { name: /Documentos/ });
+  const folderPath = await folderLink.getAttribute('href');
+  expect(folderPath).toMatch(/^\/drive\/folders\/[\da-f-]{36}$/);
+  await folderLink.click();
+  await expect(page).toHaveURL(new RegExp(`${folderPath}$`));
+  await page.getByRole('button', { name: 'Nueva carpeta' }).click();
+  await page.getByLabel('Nombre', { exact: true }).fill('Subcarpeta');
+  await page.getByRole('dialog').getByRole('button', { name: 'Nueva carpeta' }).click();
+  const nestedRow = page.getByRole('article').filter({ has: page.getByRole('link', { name: /Subcarpeta/ }) });
+  await nestedRow.getByRole('button', { name: 'Acciones del elemento' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Subcarpeta' })).toBeVisible();
+  const nestedUrl = page.url();
+  await navigation.getByRole('link', { name: 'Galería' }).click();
+  await expect(page).toHaveURL(/\/drive\/gallery$/);
+  await page.goBack();
+  await expect(page).toHaveURL(nestedUrl);
+  await expect(page.getByRole('heading', { name: 'Subcarpeta' })).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/\/drive\/gallery$/);
+  await page.goto(nestedUrl);
+  await expect(page.getByRole('heading', { name: 'Subcarpeta' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Subcarpeta' })).toBeVisible();
+  await page.getByRole('link', { name: 'Documentos', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Documentos' })).toBeVisible();
   let releaseParts = () => {};
   const partsPaused = new Promise<void>((resolve) => { releaseParts = resolve; });
   const attempts: string[] = [];
@@ -80,6 +109,7 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   const summary = page.getByRole('button', { name: /^Ver transferencias/ });
   await expect(summary).toHaveText(/En curso: 3 · En cola: 1/);
   await summary.click();
+  await expect(page).toHaveURL(/\/drive\/transfers$/);
   await expect(page.getByRole('heading', { name: 'Transferencias', exact: true })).toBeVisible();
   releaseParts();
   await page.getByRole('button', { name: 'Reintentar reintento.txt' }).click();
@@ -87,7 +117,7 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   expect(attempts).toHaveLength(2);
   expect(attempts[1]).toBe(attempts[0]);
   expect(firstParts).toEqual([attempts[0].replace(/2$/, '1')]);
-  await page.getByRole('button', { name: 'Mis archivos', exact: true }).click();
+  await navigation.getByRole('link', { name: 'Mis archivos', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Seleccionar nota.txt' }).check();
   await page.getByRole('button', { name: 'Renombrar' }).click();
   await page.getByLabel('Nombre', { exact: true }).fill('renombrado.txt');
@@ -112,12 +142,12 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   } finally { await context.close(); }
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
   await page.getByRole('button', { name: 'Mover a papelera' }).click();
-  await page.getByRole('button', { name: 'Papelera', exact: true }).click();
+  await navigation.getByRole('link', { name: 'Papelera', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Seleccionar renombrado.txt' }).check();
   await page.getByRole('button', { name: 'Restaurar', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Restaurar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'La papelera está vacía' })).toBeVisible();
-  const storageButton = page.getByRole('button', { name: 'Almacenamiento', exact: true });
+  const storageButton = navigation.getByRole('link', { name: 'Almacenamiento', exact: true });
   await storageButton.click();
   const quota = page.getByRole('region', { name: 'Cuota de Nuvex' });
   const volume = page.getByRole('region', { name: 'Volumen de archivos' });
@@ -132,12 +162,14 @@ test('configura TOTP, sube, renombra, comparte y restaura', async ({ page, brows
   else await expect(volume.getByText(/medición reciente/)).toBeVisible();
   await page.screenshot({ path: info.outputPath('almacenamiento.png') });
 
-  await page.locator('nav').getByRole('button', { name: 'Mis archivos', exact: true }).click();
-  await page.locator('.workspace-heading').getByRole('button', { name: 'Mis archivos', exact: true }).click();
+  await navigation.getByRole('link', { name: 'Mis archivos', exact: true }).click();
+  await page.locator('.workspace-heading').getByRole('link', { name: 'Mis archivos', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Seleccionar Documentos' }).check();
   await page.getByRole('button', { name: 'Mover a papelera' }).click();
   await storageButton.click();
   await expect(trash.getByText('8 MB', { exact: true })).toBeVisible();
   await expect(largest.getByText('Todavía no hay archivos fuera de la papelera.')).toBeVisible();
   await expect(quota.getByText(/^8 MB de /)).toBeVisible();
+  await page.goto(nestedUrl);
+  await expect(page.getByRole('heading', { name: 'Carpeta no disponible' })).toBeVisible();
 });

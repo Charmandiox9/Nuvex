@@ -127,15 +127,15 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .drive.sidebar-collapsed .sidebar .brand-button { margin: 0; }
 .drive.sidebar-collapsed .sidebar .brand span,
 .drive.sidebar-collapsed .sidebar-bottom .storage,
-.drive.sidebar-collapsed .sidebar nav button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.drive.sidebar-collapsed .sidebar nav a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .drive.sidebar-collapsed .sidebar-bottom { padding: 0; }
 .drive.sidebar-collapsed .sidebar-bottom .text-button { width: 40px; overflow: hidden; gap: 20px; padding-inline: 10px; }
 .drive.sidebar-collapsed .sidebar-bottom svg { flex: none; }
 .sidebar { display: flex; flex-direction: column; align-items: stretch; padding: 26px 15px 17px; gap: 28px; background: var(--sidebar); border-right: 1px solid var(--line); min-width: 0; }
 .sidebar .brand-button { margin-inline: 9px; }
 .sidebar nav { display: grid; gap: 4px; }
-.sidebar nav button { display: flex; align-items: center; gap: 10px; padding: 10px 11px; min-height: 42px; border-radius: 8px; text-align: left; color: var(--muted); font-weight: 540; }
-.sidebar nav button:hover { background: var(--surface); color: var(--text); }
+.sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 10px 11px; min-height: 42px; border-radius: 8px; text-align: left; color: var(--muted); font-weight: 540; }
+.sidebar nav a:hover { background: var(--surface); color: var(--text); }
 .sidebar nav .nav-active { background: var(--nav-active-bg); color: var(--accent); font-weight: 660; }
 .sidebar-bottom { margin-top: auto; padding-inline: 9px; display: grid; gap: 13px; }
 .storage { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--muted); font-size: 13px; }
@@ -167,7 +167,7 @@ progress::-moz-progress-bar { background: var(--accent); }
 .entries { display: grid; }
 .entries article { display: flex; align-items: center; gap: 13px; min-width: 0; border: 1px solid var(--line); background: var(--sidebar); padding: 9px 13px; }
 .entries article:hover, .entries .row-selected { background: var(--surface); }
-.entry-button { min-width: 0; flex: 1; display: flex; align-items: center; text-align: left; gap: 11px; min-height: 44px; }
+.entry-button { min-width: 0; flex: 1; display: flex; align-items: center; text-align: left; color: inherit; gap: 11px; min-height: 44px; }
 .entry-button > span:last-child { min-width: 0; }
 .entry-button strong, .entry-button small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; }
 .entries time { font-size: 12px; white-space: nowrap; }
@@ -328,7 +328,7 @@ dialog::backdrop { background: #080d08b9; }
   .drive { grid-template-columns: 67px minmax(0, 1fr); }
   .sidebar { padding-inline: 9px; align-items: center; }
   .sidebar .brand-button { margin: 0; }
-  .sidebar .brand span, .sidebar-bottom .storage, .sidebar nav button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .sidebar .brand span, .sidebar-bottom .storage, .sidebar nav a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .sidebar-bottom { padding: 0; }
   .sidebar-bottom .text-button { width: 40px; overflow: hidden; gap: 20px; padding-inline: 10px; }
   .sidebar-bottom svg { flex: none; }

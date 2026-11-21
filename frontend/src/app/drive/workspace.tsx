@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { animate, stagger } from 'animejs';
 import {
@@ -23,6 +24,7 @@ import { Pagination } from '@/components/pagination';
 import { RowMenu } from '@/components/row-menu';
 import { Imports, LinkPanel, Settings } from './panels';
 import { StoragePanel } from './storage';
+import { drivePath, driveRouteFromPathname, type DriveRoute, type DriveView } from './routes';
 import { TransferSummary, Transfers } from '@/components/transfers';
 import { useTransfers } from '@/hooks/use-transfers';
 import { useI18n } from '@/i18n/provider';
@@ -36,8 +38,7 @@ const sections = [
   { id: 'imports', key: 'drive.section.imports', icon: FileJson },
   { id: 'storage', key: 'drive.storage', icon: HardDrive },
   { id: 'settings', key: 'drive.section.settings', icon: SettingsIcon },
-] as const;
-type View = typeof sections[number]['id'];
+] as const satisfies readonly { id: DriveView; key: string; icon: LucideIcon }[];
 type Operation = 'folder' | 'rename' | 'move' | 'copy' | 'restore' | 'purge' | 'share';
 const operationKeys: Record<Operation, string> = {
   folder: 'drive.op.folder', rename: 'drive.op.rename', move: 'drive.op.move', copy: 'drive.op.copy',
@@ -54,7 +55,13 @@ const isViewableMedia = (row: Entry) => {
   return (row.mime.startsWith('image/') || row.mime.startsWith('video/')) && (row.mediaStatus === 'ready' || row.hasPreview);
 };
 
-export default function Drive() {
+export function DriveWorkspace({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const route = driveRouteFromPathname(pathname);
+  return route ? <Drive route={route} /> : children;
+}
+
+function Drive({ route: { view, folderId } }: { route: DriveRoute }) {
   const router = useRouter();
   const cache = useQueryClient();
   const { t, locale } = useI18n();
@@ -65,8 +72,7 @@ export default function Drive() {
     setSidebarOpen(next);
     localStorage.setItem('nuvex-sidebar', next ? 'open' : 'closed');
   }
-  const [view, setView] = useState<View>('files');
-  const [path, setPath] = useState<Entry[]>([]);
+  const [lastFolderPath, setLastFolderPath] = useState<Entry[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState('name');
@@ -111,13 +117,41 @@ export default function Drive() {
     const maxSize = sizeFilter === 'small' ? String(1024 ** 2 - 1) : sizeFilter === 'medium' ? String(100 * 1024 ** 2) : undefined;
     return { kind, mimePrefix, from, minSize, maxSize, active: Boolean(typeFilter || dateFilter || sizeFilter) };
   }, [typeFilter, dateFilter, sizeFilter]);
-  const parentId = path.at(-1)?.id ?? '';
-  const folderName = path.at(-1)?.name ?? t('drive.section.files');
   const showListing = view === 'files' || view === 'gallery' || view === 'trash';
+  const href = drivePath(view, folderId);
   const me = useQuery({ queryKey: ['me'], queryFn: () => api('/auth/me') });
   useEffect(() => {
-    if (me.error instanceof ApiError && me.error.status === 401) router.replace('/');
-  }, [me.error, router]);
+    if (me.error instanceof ApiError && me.error.status === 401) {
+      router.replace(href === '/drive' ? '/' : '/?' + new URLSearchParams({ next: href }));
+    }
+  }, [me.error, href, router]);
+  const folderPath = useQuery({
+    queryKey: ['folder-path', folderId],
+    queryFn: async () => {
+      const ancestors: Entry[] = [];
+      const seen = new Set<string>();
+      let id = folderId ?? '';
+      while (id) {
+        if (seen.has(id)) throw new ApiError(404, t('drive.folderUnavailable'));
+        seen.add(id);
+        const { entry } = await gql<{ entry: Entry }>(previewQuery, { id });
+        if (entry.kind !== 'folder') throw new ApiError(404, t('drive.folderUnavailable'));
+        ancestors.push(entry);
+        id = entry.parentId;
+      }
+      return ancestors.reverse();
+    },
+    enabled: Boolean(me.data && folderId),
+  });
+  useEffect(() => {
+    if (view !== 'files') return;
+    if (!folderId) setLastFolderPath([]);
+    else if (folderPath.data) setLastFolderPath(folderPath.data);
+  }, [view, folderId, folderPath.data]);
+  const path = view === 'files' ? (folderPath.data ?? []) : lastFolderPath;
+  const parentId = view === 'files' ? (folderId ?? '') : (path.at(-1)?.id ?? '');
+  const folderName = path.at(-1)?.name ?? t('drive.section.files');
+  const folderReady = !folderId || Boolean(folderPath.data && !folderPath.isError);
   const entries = useInfiniteQuery({
     queryKey: ['entries', view, parentId, filter, sort, typeFilter, dateFilter, sizeFilter],
     initialPageParam: undefined as string | undefined,
@@ -126,7 +160,7 @@ export default function Drive() {
       { view, parentId, search: filter, cursor: pageParam, limit: PAGE_SIZE, sort, kind: filters.kind, mimePrefix: filters.mimePrefix, from: filters.from, minSize: filters.minSize, maxSize: filters.maxSize },
     ).then((data) => data.entries),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: Boolean(me.data && showListing),
+    enabled: Boolean(me.data && showListing && folderReady),
     refetchInterval: 4500,
   });
   const quota = useQuery({ queryKey: ['quota'], queryFn: () => api<{ used: string; quota: string }>('/quota'), enabled: Boolean(me.data) });
@@ -152,6 +186,11 @@ export default function Drive() {
   const destinationRows = destinations.data?.pages[destinationIndex - 1]?.items ?? [];
 
   useEffect(() => {
+    setSearch(''); setFilter(''); setTypeFilter(''); setDateFilter(''); setSizeFilter('');
+    setViewerId(undefined); setPreview(undefined); setOp(undefined); setShare(undefined);
+    setOperationError(''); setSuggested('');
+  }, [view, folderId]);
+  useEffect(() => {
     const timeout = window.setTimeout(() => setFilter(search), 220);
     return () => window.clearTimeout(timeout);
   }, [search]);
@@ -176,6 +215,7 @@ export default function Drive() {
     void cache.invalidateQueries({ queryKey: ['quota'] });
     void cache.invalidateQueries({ queryKey: ['storage-overview'] });
     void cache.invalidateQueries({ queryKey: ['destinations'] });
+    void cache.invalidateQueries({ queryKey: ['folder-path'] });
   };
   const transfers = useTransfers(refresh, t);
   const allRows = entries.data?.pages.flatMap((item) => item.items) ?? [];
@@ -211,14 +251,8 @@ export default function Drive() {
     setFolderPage(target);
   }
 
-  function navigate(next: View) { setView(next); setSearch(''); setFilter(''); setSelected([]); setTypeFilter(''); setDateFilter(''); setSizeFilter(''); }
   function openRow(row: Entry) {
     if (view === 'trash') return;
-    if (row.kind === 'folder') {
-      setPath(filter ? [row] : [...path, row]);
-      navigate('files');
-      return;
-    }
     if (isViewableMedia(row)) { setViewerId(row.id); return; }
     setPreview(row);
     setOperationError('');
@@ -233,9 +267,9 @@ export default function Drive() {
       </button>
     </>;
     return <>
-      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openRow(row)}>
-        {row.kind === 'folder' ? <Folder size={16} /> : <Eye size={16} />} {t('drive.open')}
-      </button>
+      {row.kind === 'folder'
+        ? <Link role="menuitem" className="row-menu-item" href={drivePath('files', row.id)} prefetch={false}><Folder size={16} /> {t('drive.open')}</Link>
+        : <button type="button" role="menuitem" className="row-menu-item" onClick={() => openRow(row)}><Eye size={16} /> {t('drive.open')}</button>}
       <button type="button" role="menuitem" className="row-menu-item" onClick={() => openOp('rename', [row])}>
         <Pencil size={16} /> {t('drive.op.rename')}
       </button>
@@ -390,7 +424,7 @@ export default function Drive() {
   function workspaceDragOver(event: DragEvent<HTMLElement>) {
     if (!event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
-    if (!fileDragActive) setFileDragActive(true);
+    if (view !== 'trash' && folderReady && !fileDragActive) setFileDragActive(true);
   }
   function workspaceDragLeave(event: DragEvent<HTMLElement>) {
     const next = event.relatedTarget as Node | null;
@@ -401,8 +435,9 @@ export default function Drive() {
     if (!event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
     setFileDragActive(false);
+    if (view === 'trash' || !folderReady) return;
     void collectDroppedFiles(event.dataTransfer).then((files) => {
-      if (files.length && view !== 'trash') transfers.add(files, parentId);
+      if (files.length) transfers.add(files, parentId);
     });
   }
 
@@ -410,12 +445,12 @@ export default function Drive() {
 
   return <main className={'drive' + (sidebarOpen ? '' : ' sidebar-collapsed')}>
     <aside className="sidebar">
-      <button className="brand-button" onClick={() => { setPath([]); navigate('files'); }}><Brand /></button>
+      <Link href={drivePath('files')} className="brand-button"><Brand /></Link>
       <nav aria-label="Drive">
-        {sections.map(({ id, key, icon: Icon }) => <button key={id} onClick={() => navigate(id)}
+        {sections.map(({ id, key, icon: Icon }) => <Link key={id} href={drivePath(id, lastFolderPath.at(-1)?.id)}
           className={view === id ? 'nav-active' : ''} aria-current={view === id ? 'page' : undefined}>
           <Icon size={17} /> <span>{t(key)}</span>
-        </button>)}
+        </Link>)}
       </nav>
       <div className="sidebar-bottom">
         <div className="storage"><HardDrive size={15} /> <span>{t('drive.storage')}</span>
@@ -440,18 +475,20 @@ export default function Drive() {
           </div>
           <div className="topbar-tools">
             {showListing && <label className="search"><Search size={17} /><input type="search" aria-label={t('drive.searchAria')} placeholder={t('drive.searchPlaceholder')} value={search} onChange={(event) => { setSearch(event.target.value); setSelected([]); }} /></label>}
-            <TransferSummary transfers={transfers.transfers} open={() => navigate('transfers')} />
+            <TransferSummary transfers={transfers.transfers} open={() => router.push(drivePath('transfers'))} />
           </div>
         </div>
       </header>
       <div className="workspace-body">
         <header className="workspace-heading">
           <div>
-            {view === 'files' && path.length > 0 && <button className="text-button back" onClick={() => { setPath(path.slice(0, -1)); navigate('files'); }}><ArrowLeft size={16} /> {path.at(-2)?.name ?? t('drive.section.files')}</button>}
-            <h1>{view === 'files' && path.length ? folderName : t(sections.find((item) => item.id === view)?.key ?? '')}</h1>
+            {folderId && <Link className="text-button back" href={drivePath('files', path.at(-2)?.id)}><ArrowLeft size={16} /> {path.at(-2)?.name ?? t('drive.section.files')}</Link>}
+            <h1>{folderId
+              ? (folderReady ? folderName : t(folderPath.isError ? 'drive.folderUnavailable' : 'drive.folderOpening'))
+              : t(sections.find((item) => item.id === view)?.key ?? '')}</h1>
           </div>
           <div className="actions">
-            {view === 'files' && <>
+            {view === 'files' && folderReady && <>
               <button className="secondary" onClick={() => openOp('folder')}><FolderPlus size={17} /> {t('drive.op.folder')}</button>
               <button className="secondary" onClick={() => folderPicker.current?.click()}>{t('drive.uploadFolder')}</button>
               <button className="primary" onClick={() => picker.current?.click()}><ArrowUpFromLine size={17} /> {t('drive.uploadFiles')}</button>
@@ -470,7 +507,11 @@ export default function Drive() {
           const files = event.currentTarget.files; event.currentTarget.value = '';
           void uploadIcon(files);
         }} />
-        {showListing && <div ref={listing}>
+        {folderId && folderPath.isError && <div className="panel stack">
+          <p className="error" role="alert">{message(folderPath.error)}</p>
+          <Link className="secondary" href={drivePath('files')}>{t('drive.section.files')}</Link>
+        </div>}
+        {showListing && folderReady && <div ref={listing}>
           <div className="listing-tools">
             <span>{active.length ? t(active.length === 1 ? 'drive.selectedOne' : 'drive.selectedOther', { count: active.length }) : filter ? t('drive.resultsFor', { query: filter }) : t('drive.content')}</span>
             <div className="actions">
@@ -544,22 +585,28 @@ export default function Drive() {
             {view === 'files' && !filter && <p>{t('drive.emptyHint')}</p>}
           </div>}
           {rows.length > 0 && <div className={'entries ' + (layout === 'grid' || view === 'gallery' ? 'grid-view' : 'list-view')}>
-            {rows.map((row) => <article key={row.id}
-              className={[selected.includes(row.id) ? 'row-selected' : '', draggingId === row.id ? 'row-dragging' : '', dropFolderId === row.id ? 'row-drop' : ''].filter(Boolean).join(' ')}
-              draggable={view !== 'trash'}
-              onDragStart={(event) => startRowDrag(event, row)}
-              onDragEnd={endRowDrag}
-              onDragOver={(event) => overFolder(event, row)}
-              onDragLeave={(event) => leaveFolder(event, row)}
-              onDrop={(event) => void dropOnFolder(event, row)}>
-              <input type="checkbox" aria-label={t('drive.selectAria', { name: row.name })} checked={selected.includes(row.id)} onChange={(event) =>
-                setSelected(event.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} />
-              <button className="entry-button" onClick={() => openRow(row)} disabled={view === 'trash'}>
-                <FileVisual row={row} /><span><strong title={row.name}>{row.name}</strong><small>{row.kind === 'folder' ? t('drive.folder') : formatBytes(row.size, locale)}{row.mediaStatus === 'failed' ? ' · ' + t('drive.mediaFailed') : ''}</small></span>
-              </button>
-              <time dateTime={row.updatedAt}>{new Date(row.updatedAt).toLocaleDateString(locale)}</time>
-              <RowMenu label={t('drive.rowActions')}>{rowActions(row)}</RowMenu>
-            </article>)}
+            {rows.map((row) => {
+              const label = <>
+                <FileVisual row={row} />
+                <span><strong title={row.name}>{row.name}</strong><small>{row.kind === 'folder' ? t('drive.folder') : formatBytes(row.size, locale)}{row.mediaStatus === 'failed' ? ' · ' + t('drive.mediaFailed') : ''}</small></span>
+              </>;
+              return <article key={row.id}
+                className={[selected.includes(row.id) ? 'row-selected' : '', draggingId === row.id ? 'row-dragging' : '', dropFolderId === row.id ? 'row-drop' : ''].filter(Boolean).join(' ')}
+                draggable={view !== 'trash'}
+                onDragStart={(event) => startRowDrag(event, row)}
+                onDragEnd={endRowDrag}
+                onDragOver={(event) => overFolder(event, row)}
+                onDragLeave={(event) => leaveFolder(event, row)}
+                onDrop={(event) => void dropOnFolder(event, row)}>
+                <input type="checkbox" aria-label={t('drive.selectAria', { name: row.name })} checked={selected.includes(row.id)} onChange={(event) =>
+                  setSelected(event.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} />
+                {row.kind === 'folder' && view !== 'trash'
+                  ? <Link className="entry-button" href={drivePath('files', row.id)} prefetch={false}>{label}</Link>
+                  : <button className="entry-button" onClick={() => openRow(row)} disabled={view === 'trash'}>{label}</button>}
+                <time dateTime={row.updatedAt}>{new Date(row.updatedAt).toLocaleDateString(locale)}</time>
+                <RowMenu label={t('drive.rowActions')}>{rowActions(row)}</RowMenu>
+              </article>;
+            })}
           </div>}
           <Pagination page={pageIndex} pages={loadedPages} hasNext={Boolean(entries.hasNextPage)}
             busy={entries.isFetchingNextPage} onSelect={(target) => void goToPage(target)} />
@@ -567,7 +614,7 @@ export default function Drive() {
         {view === 'transfers' && <div className="panel-column"><Transfers transfers={transfers.transfers} cancel={transfers.cancel} retry={transfers.retry} /></div>}
         {view === 'imports' && <div className="panel-column"><Imports parentId={parentId} folderName={folderName} /></div>}
         {view === 'links' && <div className="panel-column"><LinkPanel /></div>}
-        {view === 'storage' && <StoragePanel openTrash={() => navigate('trash')} />}
+        {view === 'storage' && <StoragePanel openTrash={() => router.push(drivePath('trash'))} />}
         {view === 'settings' && <Settings />}
       </div>
     </section>

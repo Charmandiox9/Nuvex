@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DriveWorkspace } from './workspace';
 
 export const metadata: Metadata = {
   title: 'Drive',
@@ -6,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function DriveLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <DriveWorkspace>{children}</DriveWorkspace>;
 }

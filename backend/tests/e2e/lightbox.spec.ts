@@ -57,7 +57,8 @@ test('abre el visor, navega con el teclado y cierra', async ({ page }) => {
   await page.getByRole('button', { name: 'Verificar y entrar' }).click();
   await page.getByRole('button', { name: 'Abrir mi drive' }).click();
 
-  await page.getByRole('button', { name: 'Galería', exact: true }).click();
+  await page.getByRole('link', { name: 'Galería', exact: true }).click();
+  await expect(page).toHaveURL(/\/drive\/gallery$/);
   await expect(page.locator('.file-thumb')).toHaveCount(2);
   await page.getByRole('button', { name: /dos\.png/ }).click();
   await expect(page.locator('.lightbox')).toBeVisible();

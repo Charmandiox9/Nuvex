@@ -37,7 +37,8 @@ test('cambia la contraseña desde ajustes', async ({ page }) => {
   await page.getByRole('button', { name: 'Verificar y entrar' }).click();
   await page.getByRole('button', { name: 'Abrir mi drive' }).click();
 
-  await page.getByRole('button', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('link', { name: 'Ajustes', exact: true }).click();
+  await expect(page).toHaveURL(/\/drive\/settings$/);
   const panel = page.locator('section.panel').filter({ hasText: 'Cambiar contraseña' });
   await expect(panel).toBeVisible();
   await panel.locator('#pw-current').fill(password);

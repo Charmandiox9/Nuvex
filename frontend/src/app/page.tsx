@@ -8,8 +8,15 @@ import { message } from '@/lib/format';
 import { Brand } from '@/components/brand';
 import { useI18n } from '@/i18n/provider';
 import { PreferencesMenu } from '@/components/preferences-menu';
+import { drivePath, driveRouteFromPathname } from './drive/routes';
 
 type LoginResult = { stage: 'verify' | 'enroll'; qr?: string; setupKey?: string };
+
+function loginDestination() {
+  const next = new URLSearchParams(window.location.search).get('next');
+  const target = next ? driveRouteFromPathname(next) : null;
+  return target ? drivePath(target.view, target.folderId) : drivePath('files');
+}
 
 export default function Login() {
   const router = useRouter();
@@ -33,7 +40,7 @@ export default function Login() {
     }
     const idle = window.setTimeout(sync, 300);
     preference.addEventListener('change', sync);
-    void api('/auth/me').then(() => { if (active) router.replace('/drive'); }).catch(() => undefined);
+    void api('/auth/me').then(() => { if (active) router.replace(loginDestination()); }).catch(() => undefined);
     return () => {
       active = false;
       window.clearTimeout(idle);
@@ -53,7 +60,7 @@ export default function Login() {
       else {
         const result = await api<{ recoveryCodes: string[] }>(recovery ? '/auth/recovery' : '/auth/totp', 'POST', { code: form.get('code') });
         if (result.recoveryCodes.length) setCodes(result.recoveryCodes);
-        else router.replace('/drive');
+        else router.replace(loginDestination());
       }
     } catch (error) { setError(message(error)); }
     finally { setBusy(false); }
@@ -73,7 +80,7 @@ export default function Login() {
         {codes.length ? <>
           <p>{t('login.codes.hint')}</p>
           <ul className="recovery-codes">{codes.map((code) => <li key={code}>{code}</li>)}</ul>
-          <button className="primary login-submit" onClick={() => router.replace('/drive')}>{t('login.codes.open')} <ArrowRight size={17} /></button>
+          <button className="primary login-submit" onClick={() => router.replace(loginDestination())}>{t('login.codes.open')} <ArrowRight size={17} /></button>
         </> : <>
           <p>{login?.stage === 'enroll' ? t('login.enroll.hint') : login ? t('login.verify.hint') : t('login.signin.hint')}</p>
           {login?.qr && <div className="setup">
