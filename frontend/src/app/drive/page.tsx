@@ -15,6 +15,7 @@ import { destinationQuery, driveQuery, previewQuery } from '@/graphql/entries';
 import type { Entry, Page } from '@/types/entry';
 import { Brand } from '@/components/brand';
 import { FileVisual } from '@/components/file-visual';
+import { MediaViewer } from '@/components/media-viewer';
 import { Imports, LinkPanel, Settings } from './panels';
 import { Transfers } from '@/components/transfers';
 import { useTransfers } from '@/hooks/use-transfers';
@@ -48,6 +49,7 @@ export default function Drive() {
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<Entry>();
+  const [viewer, setViewer] = useState<{ items: Entry[]; index: number }>();
   const [op, setOp] = useState<{ name: Operation; rows: Entry[] }>();
   const [share, setShare] = useState<{ code: string; path: string }>();
   const [operationError, setOperationError] = useState('');
@@ -140,10 +142,18 @@ export default function Drive() {
     if (row.kind === 'folder') {
       setPath(filter ? [row] : [...path, row]);
       navigate('files');
-    } else {
-      setPreview(row);
-      setOperationError('');
+      return;
     }
+    const media = rows.filter((item) => item.kind === 'file'
+      && (item.mime.startsWith('image/') || item.mime.startsWith('video/'))
+      && (item.mediaStatus === 'ready' || item.hasPreview));
+    const index = media.findIndex((item) => item.id === row.id);
+    if (index >= 0) {
+      setViewer({ items: media, index });
+      return;
+    }
+    setPreview(row);
+    setOperationError('');
   }
 
   async function perform(event: FormEvent<HTMLFormElement>) {
@@ -400,5 +410,7 @@ export default function Drive() {
         </div>}
       </div>
     </dialog>
+    {viewer && <MediaViewer items={viewer.items} index={viewer.index} onClose={() => setViewer(undefined)}
+      onIndexChange={(index) => setViewer((value) => (value ? { ...value, index } : value))} />}
   </main>;
 }

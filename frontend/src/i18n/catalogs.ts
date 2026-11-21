@@ -211,6 +211,11 @@ export const messages = {
     'security.sessions': 'Sesiones',
     'security.revokeOthers': 'Cerrar todas las demás sesiones',
     'security.revokedMany': 'Se cerraron {count} sesiones',
+    // Visor
+    'viewer.prev': 'Anterior',
+    'viewer.next': 'Siguiente',
+    'viewer.zoomIn': 'Ampliar',
+    'viewer.zoomOut': 'Reducir',
   },
   en: {
     // Login
@@ -422,6 +427,11 @@ export const messages = {
     'security.sessions': 'Sessions',
     'security.revokeOthers': 'Sign out all other sessions',
     'security.revokedMany': '{count} sessions signed out',
+    // Viewer
+    'viewer.prev': 'Previous',
+    'viewer.next': 'Next',
+    'viewer.zoomIn': 'Zoom in',
+    'viewer.zoomOut': 'Zoom out',
   },
 } as const;
 
