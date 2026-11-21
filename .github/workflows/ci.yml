@@ -1,0 +1,36 @@
+name: Nuvex CI
+on: [push, pull_request]
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      PUBLIC_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://nuvex:ci-postgres@127.0.0.1:5432/nuvex
+      POSTGRES_PASSWORD: ci-postgres
+      AWS_ACCESS_KEY_ID: nuvex
+      AWS_SECRET_ACCESS_KEY: ci-storage-secret
+      NUVEX_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      NUVEX_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm lint && pnpm typecheck
+      - run: pnpm dev:infra
+      - run: sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg
+      - run: pnpm migrate && pnpm openapi && pnpm test
+      - run: pnpm -C backend exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: backend/openapi.json

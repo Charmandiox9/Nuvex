@@ -1,0 +1,34 @@
+{
+  "name": "nuvex",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.31.0",
+  "engines": {
+    "node": "^22.12 || ^24.0 || ^25.0"
+  },
+  "scripts": {
+    "dev": "pnpm -C frontend dev",
+    "dev:infra": "pnpm -C backend run dev:infra",
+    "dev:infra:stop": "pnpm -C backend run dev:infra:stop",
+    "start:dev": "pnpm -C backend run start:dev",
+    "start:worker:dev": "pnpm -C backend run start:worker:dev",
+    "generate": "pnpm -C backend run generate",
+    "migrate": "pnpm -C backend run migrate",
+    "build:server": "pnpm -C backend run build:server",
+    "start:api": "pnpm -C backend run start:api",
+    "start:worker": "pnpm -C backend run start:worker",
+    "owner": "pnpm -C backend run owner",
+    "openapi": "pnpm -C backend run openapi",
+    "test": "pnpm -C backend run test",
+    "test:e2e": "pnpm -C backend run test:e2e",
+    "typecheck": "pnpm -C backend typecheck && pnpm -C frontend typecheck",
+    "build": "pnpm build:server && pnpm -C frontend build",
+    "lint": "eslint backend/src backend/prisma frontend"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "eslint": "^9",
+    "typescript-eslint": "^8",
+    "typescript": "~5.9"
+  }
+}

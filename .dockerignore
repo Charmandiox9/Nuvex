@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/dist
+.git
+**/.env
+**/.env.*
+backend/prisma/generated
+**/test-results
+**/playwright-report
+**/openapi.json
+**/data
+**/backup-state
+backend/.local

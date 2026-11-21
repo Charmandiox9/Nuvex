@@ -1,0 +1,16 @@
+node_modules/
+.next/
+dist/
+.env
+.env.*
+!.env.example
+coverage/
+test-results/
+playwright-report/
+backend/prisma/generated/
+backend/.local/
+openapi.json
+*.tsbuildinfo
+next-env.d.ts
+data/
+backup-state/
