@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { messages, type Locale } from './catalogs';
+import { interpolate } from './translate';
 import { setActiveLocale } from '@/lib/format';
 
 export type TFunction = (key: string, vars?: Record<string, string | number>) => string;
@@ -36,13 +37,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = useCallback<TFunction>((key, vars) => {
     const catalog = messages[locale] as Record<string, string>;
     const fallback = messages.es as Record<string, string>;
-    let template = catalog[key] ?? fallback[key] ?? key;
-    if (vars) {
-      for (const [name, value] of Object.entries(vars)) {
-        template = template.split(`{${name}}`).join(String(value));
-      }
-    }
-    return template;
+    return interpolate(catalog[key] ?? fallback[key] ?? key, vars);
   }, [locale]);
 
   return <I18nContext.Provider value={{ locale, setLocale, t }}>{children}</I18nContext.Provider>;

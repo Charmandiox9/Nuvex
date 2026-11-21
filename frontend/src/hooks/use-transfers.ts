@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { message } from '@/lib/format';
+import { runPool } from '@/lib/pool';
 import type { TFunction } from '@/i18n/provider';
 
 export type Transfer = { id: string; name: string; sent: number; total: number; state: string; error?: string };
@@ -111,15 +112,8 @@ export function useTransfers(refresh: () => void, t: TFunction) {
     if (running.current || !files.length) return;
     running.current = true;
     const folders = new Map<string, Promise<string>>();
-    let cursor = 0;
-    async function worker() {
-      while (cursor < files.length) {
-        const file = files[cursor++];
-        await uploadFile(file, parentId, folders);
-      }
-    }
     try {
-      await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, () => worker()));
+      await runPool(files, concurrency, (file) => uploadFile(file, parentId, folders));
     } finally {
       running.current = false;
     }

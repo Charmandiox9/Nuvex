@@ -19,7 +19,7 @@
     "start:worker": "pnpm -C backend run start:worker",
     "owner": "pnpm -C backend run owner",
     "openapi": "pnpm -C backend run openapi",
-    "test": "pnpm -C backend run test",
+    "test": "pnpm -C backend run test && pnpm -C frontend run test",
     "test:e2e": "pnpm -C backend run test:e2e",
     "typecheck": "pnpm -C backend typecheck && pnpm -C frontend typecheck",
     "build": "pnpm build:server && pnpm -C frontend build",

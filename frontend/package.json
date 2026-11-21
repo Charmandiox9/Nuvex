@@ -5,7 +5,8 @@
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tanstack/react-query": "^5",
@@ -19,10 +20,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.183",
-    "typescript": "~5.9"
+    "tailwindcss": "^4",
+    "typescript": "~5.9",
+    "vitest": "^5.1.1"
   }
 }
