@@ -27,7 +27,7 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Frontend: `components/media-viewer.tsx` (lista + índice; ←/→, `Esc`, swipe, zoom).
 - [x] Integrar en galería y en el explorador (navegación dentro de los medios cargados).
 - [x] Paginar el visor cerca del final.
-- [ ] Tests: e2e del visor (requiere el worker en el harness para procesar medios). Sin cambios de backend.
+- [x] Tests: e2e del visor (se siembran dos medios listos; escritorio y móvil). Sin cambios de backend.
 
 ### 3. Descarga de carpeta (ZIP)
 - [x] Backend: `GET /entries/:id/archive` (streaming, exclusión de papelera, límite de entradas, solo `ownerId`).
