@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client"
+  output = "./generated"
+  moduleFormat = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Owner {
+  id String @id @default(uuid())
+  username String @unique
+  passwordHash String
+  totpSecret String?
+  recoveryHashes String[] @default([])
+  lastTotpStep BigInt @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  tokenHash String @id
+  ownerId String
+  verified Boolean @default(false)
+  enrollment String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([ownerId])
+  @@index([expiresAt])
+}
+
+model RateLimit {
+  key String @id
+  hits Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model Entry {
+  id String @id @default(uuid())
+  ownerId String
+  parentId String @default("")
+  name String
+  kind String
+  mime String @default("application/octet-stream")
+  size BigInt @default(0)
+  objectKey String? @unique
+  previewKey String?
+  posterKey String?
+  videoKey String?
+  mediaStatus String @default("none")
+  trashedAt DateTime?
+  purging Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId, parentId, trashedAt])
+  @@index([trashedAt])
+}
+
+model Upload {
+  id String @id @default(uuid())
+  ownerId String
+  parentId String @default("")
+  name String
+  mime String
+  expectedSize BigInt
+  fingerprint String
+  objectKey String @unique
+  multipartId String?
+  entryId String?
+  state String @default("open")
+  updatedAt DateTime @updatedAt
+  @@index([ownerId, state, updatedAt])
+}
+
+model Share {
+  id String @id @default(uuid())
+  ownerId String
+  entryId String
+  codeHash String
+  remaining Int
+  maxUses Int
+  allowDownload Boolean @default(false)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([ownerId, createdAt])
+}
+
+model GuestSession {
+  id String @id @default(uuid())
+  tokenHash String @unique
+  shareId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([shareId])
+}
+
+model ImportItem {
+  id String @id @default(uuid())
+  ownerId String
+  batchId String
+  parentId String
+  url String
+  name String?
+  state String @default("queued")
+  error String?
+  entryId String?
+  updatedAt DateTime @updatedAt
+  @@unique([batchId, url])
+  @@index([ownerId, updatedAt])
+}
+
+model Setting {
+  key String @id
+  value String
+}
+
+model Audit {
+  id String @id @default(uuid())
+  ownerId String?
+  action String
+  target String?
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}

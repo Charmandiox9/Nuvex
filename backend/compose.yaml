@@ -1,0 +1,135 @@
+name: nuvex
+
+x-runtime: &runtime
+  restart: unless-stopped
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+x-server-environment: &server-environment
+  DATABASE_URL: postgresql://nuvex:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/nuvex
+  REDIS_URL: redis://redis:6379
+  S3_ENDPOINT: http://storage:8333
+  S3_BUCKET: nuvex
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-nuvex}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY}
+  NUVEX_SECRET: ${NUVEX_SECRET:?Set NUVEX_SECRET}
+  NUVEX_QUOTA_BYTES: ${NUVEX_QUOTA_BYTES:-107374182400}
+
+services:
+  db:
+    image: postgres:17.10-alpine
+    restart: unless-stopped
+    networks: [data]
+    environment:
+      POSTGRES_USER: nuvex
+      POSTGRES_DB: nuvex
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - ${NUVEX_DATA:-./data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD, pg_isready, -U, nuvex]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    networks: [data]
+    volumes:
+      - ${NUVEX_DATA:-./data}/redis:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  storage:
+    image: chrislusf/seaweedfs:4.22
+    restart: unless-stopped
+    command: ["mini", "-dir=/data", "-ip.bind=0.0.0.0"]
+    networks: [data]
+    environment:
+      S3_BUCKET: nuvex
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-nuvex}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - ${NUVEX_DATA:-./data}/seaweedfs:/data
+
+  api:
+    <<: *runtime
+    image: ${NUVEX_API_IMAGE:-nuvex-api:local}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      target: api
+    networks: [edge, data]
+    environment:
+      <<: *server-environment
+      API_HOST: 0.0.0.0
+      TRUST_PROXY: "1"
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://localhost}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      storage: { condition: service_started }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  worker:
+    <<: *runtime
+    image: ${NUVEX_WORKER_IMAGE:-nuvex-worker:local}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      target: worker
+    networks: [edge, data]
+    environment:
+      <<: *server-environment
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      NUVEX_ALERT_FROM: ${NUVEX_ALERT_FROM:-}
+      NUVEX_ALERT_TO: ${NUVEX_ALERT_TO:-}
+    volumes:
+      - ${NUVEX_DATA:-./data}/media-work:/work
+      - ${NUVEX_DATA:-./data}/seaweedfs:/data-health:ro
+      - ${NUVEX_BACKUP_STATE:-./backup-state}:/backup-state:ro
+    stop_grace_period: 2m
+    depends_on:
+      api: { condition: service_healthy }
+
+  web:
+    <<: *runtime
+    image: ${NUVEX_WEB_IMAGE:-nuvex-web:local}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      target: web
+    networks: [edge]
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    networks: [edge]
+    ports:
+      - "${NUVEX_BIND:-127.0.0.1}:${NUVEX_HTTPS_PORT:-443}:443"
+    environment:
+      NUVEX_HOST: ${NUVEX_HOST:-localhost}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${NUVEX_DATA:-./data}/caddy:/data
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_started }
+
+networks:
+  edge:
+  data:
+    internal: true

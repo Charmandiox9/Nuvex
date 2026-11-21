@@ -1,0 +1,10 @@
+[Unit]
+Description=Respaldo de Nuvex
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/nuvex/backend
+EnvironmentFile=/etc/nuvex/backup.env
+ExecStart=/usr/bin/bash /opt/nuvex/backend/infra/backup.sh

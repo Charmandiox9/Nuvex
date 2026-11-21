@@ -1,0 +1,10 @@
+[Unit]
+Description=Respaldo nocturno de Nuvex
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=nuvex-backup.service
+
+[Install]
+WantedBy=timers.target

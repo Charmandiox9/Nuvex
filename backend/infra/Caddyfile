@@ -1,0 +1,18 @@
+{
+  admin off
+  auto_https disable_redirects
+}
+
+{$NUVEX_HOST:localhost} {
+  tls internal
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+    X-Frame-Options DENY
+    Permissions-Policy "display-capture=(), camera=(), microphone=()"
+  }
+
+  @backend path /api/* /graphql
+  reverse_proxy @backend api:3001
+  reverse_proxy web:3000
+}
