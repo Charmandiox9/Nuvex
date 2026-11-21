@@ -1,7 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import QRCode from 'qrcode';
 import { AuthService } from '../auth/auth.service';
 import { cookieOptions } from '../auth/session-cookie';
+import { sendEmail } from '../common/email';
 import { digest, secretHash, token } from '../common/security';
 import { Database } from '../database/database.service';
 import { serializeEntry } from '../files/file-entry';
@@ -35,7 +37,33 @@ export class SharesService {
       ownerId, entryId: input.entryId, codeHash: secretHash('share', code), remaining: input.uses, maxUses: input.uses,
       expiresAt: new Date(Date.now() + input.hours * 3_600_000), allowDownload: input.allowDownload,
     } });
-    return { ...safeShare(share), code, path: '/s/' + share.id };
+    const origin = process.env.PUBLIC_ORIGIN ?? 'http://localhost:3000';
+    return {
+      ...safeShare(share), code, path: '/s/' + share.id,
+      qr: await QRCode.toDataURL(origin + '/s/' + share.id),
+    };
+  }
+
+  async send(ownerId: string, id: string, to: string, code: string) {
+    await this.auth.limit('share-send', ownerId, 20);
+    const share = await this.db.client.share.findFirst({ where: { id, ownerId, revokedAt: null } });
+    if (!share || share.expiresAt <= new Date()) throw new NotFoundException('Enlace no disponible.');
+    if (share.codeHash !== secretHash('share', code.trim().toUpperCase())) {
+      throw new ForbiddenException('El código no corresponde al enlace.');
+    }
+    const key = process.env.RESEND_API_KEY;
+    const from = process.env.NUVEX_ALERT_FROM;
+    if (!key || !from) throw new ServiceUnavailableException('El envío por email no está configurado.');
+    const entry = await this.db.client.entry.findUnique({ where: { id: share.entryId }, select: { name: true } });
+    const link = (process.env.PUBLIC_ORIGIN ?? 'http://localhost:3000') + '/s/' + share.id;
+    const text = 'Te han compartido «' + (entry?.name ?? 'un elemento') + '» en Nuvex.\n\n'
+      + 'Enlace: ' + link + '\n'
+      + 'Código: ' + code.trim().toUpperCase() + '\n'
+      + 'Vence: ' + share.expiresAt.toISOString() + '\n';
+    await sendEmail({
+      key, from, to, subject: 'Invitación a un enlace de Nuvex', text,
+      idempotencyKey: 'share-' + share.id + '-' + digest(to) + '-' + Math.floor(Date.now() / 60_000),
+    });
   }
 
   async list(ownerId: string) {

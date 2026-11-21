@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsString, Length, Max, Min } from 'class-validator';
+import { IsBoolean, IsEmail, IsInt, IsString, Length, Max, Min } from 'class-validator';
 
 export class ShareBody {
   @ApiProperty() @IsString() @Length(1, 36) entryId!: string;
@@ -9,4 +9,8 @@ export class ShareBody {
 }
 export class RedeemBody {
   @ApiProperty({ writeOnly: true }) @IsString() @Length(6, 32) code!: string;
+}
+export class SendBody {
+  @ApiProperty({ example: 'alguien@ejemplo.com' }) @IsEmail() @Length(3, 200) to!: string;
+  @ApiProperty({ writeOnly: true }) @IsString() @Length(6, 64) code!: string;
 }

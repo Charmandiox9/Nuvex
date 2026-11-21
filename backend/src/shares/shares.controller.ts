@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req, Res }
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthService } from '../auth/auth.service';
-import { RedeemBody, ShareBody } from './shares.dto';
+import { RedeemBody, SendBody, ShareBody } from './shares.dto';
 import { SharesService } from './shares.service';
 
 @ApiTags('Enlaces')
@@ -19,6 +19,11 @@ export class ShareController {
   @Post()
   async create(@Req() req: Request, @Body() input: ShareBody) {
     return this.shares.create((await this.auth.session(req)).ownerId, input);
+  }
+
+  @Post(':id/send') @HttpCode(204)
+  async send(@Req() req: Request, @Param('id') id: string, @Body() body: SendBody) {
+    await this.shares.send((await this.auth.session(req)).ownerId, id, body.to, body.code);
   }
 
   @Delete(':id') @HttpCode(204)
