@@ -2,7 +2,9 @@ import {
   AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CopyObjectCommand, CreateMultipartUploadCommand,
   DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListBucketsCommand, ListObjectsV2Command, ListPartsCommand, PutObjectCommand, S3Client, UploadPartCommand,
 } from '@aws-sdk/client-s3';
-import type { Readable } from 'node:stream';
+import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
+import { jpegHashMetadata, jpegSizeMetadata, restoreJpeg, sliceRestoredJpeg } from './jpeg-xl';
 
 export const partSize = 8 * 1024 * 1024;
 export const maxFileSize = 4 * 1024 ** 3;
@@ -64,8 +66,46 @@ export class Storage {
     await this.client.send(new ListBucketsCommand({}));
   }
 
-  read(key: string, range?: string) {
-    return this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: range }));
+  read(key: string, range?: string, etag?: string) {
+    return this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: range, IfMatch: etag }));
+  }
+
+  private async readOriginalObject(key: string, range?: string) {
+    if (!range) return this.read(key);
+    const head = await this.head(key);
+    if (head.Metadata?.[jpegHashMetadata]) return this.read(key);
+    try {
+      return await this.read(key, range, head.ETag);
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== 'PreconditionFailed') throw error;
+      // The original can only transition from raw JPEG to JPEG XL.
+      return this.read(key);
+    }
+  }
+
+  async readOriginal(key: string, range?: string) {
+    let object = await this.readOriginalObject(key, range);
+    let hash = object.Metadata?.[jpegHashMetadata];
+    if (hash && object.ContentRange) {
+      if (object.Body instanceof Readable) object.Body.destroy();
+      object = await this.read(key);
+      hash = object.Metadata?.[jpegHashMetadata];
+    }
+    const body = object.Body instanceof Readable ? object.Body : undefined;
+    if (hash && body) {
+      const jpeg = await restoreJpeg(body, Number(object.Metadata?.[jpegSizeMetadata]), hash);
+      const { bytes, contentRange } = sliceRestoredJpeg(jpeg, range);
+      return { Body: Readable.from([bytes]), ContentLength: bytes.length, ContentRange: contentRange, ETag: object.ETag, compressed: true };
+    }
+    return { Body: body, ContentLength: object.ContentLength, ContentRange: object.ContentRange, ETag: object.ETag, compressed: false };
+  }
+
+  replaceWithJpegXl(key: string, etag: string, bytes: Buffer, originalSize: number, originalHash: string) {
+    return this.client.send(new PutObjectCommand({
+      Bucket: this.bucket, Key: key, Body: bytes, ContentLength: bytes.length, IfMatch: etag,
+      ChecksumSHA256: createHash('sha256').update(bytes).digest('base64'),
+      Metadata: { [jpegHashMetadata]: originalHash, [jpegSizeMetadata]: String(originalSize) },
+    }), { abortSignal: AbortSignal.timeout(30_000) });
   }
 
   put(key: string, body: Buffer | Readable, length: number) {
@@ -74,7 +114,7 @@ export class Storage {
 
   copy(from: string, to: string) {
     return this.client.send(new CopyObjectCommand({
-      Bucket: this.bucket, Key: to, CopySource: this.bucket + '/' + from.split('/').map(encodeURIComponent).join('/'),
+      Bucket: this.bucket, Key: to, CopySource: this.bucket + '/' + from.split('/').map(encodeURIComponent).join('/'), MetadataDirective: 'COPY',
     }));
   }
 

@@ -10,6 +10,7 @@ import { serialTransaction } from '../../prisma/transaction';
 import { Database } from '../database/database.service';
 import { AppException } from '../common/errors';
 import { QueueService } from '../queue/queue.service';
+import { InvalidOriginalRange } from '../storage/jpeg-xl';
 import { partSize, quotaBytes, Storage } from '../storage/storage';
 import { cleanName, mediaKind, serializeEntry } from './file-entry';
 import type { ChangeBody, FolderBody, UploadBody } from './files.dto';
@@ -374,15 +375,13 @@ export class FilesService {
     let range = req.get('range');
     if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) throw new AppException('files.range', 'Rango inválido.', 416);
     if (range === 'bytes=0-' && req.method === 'HEAD') range = undefined;
-    let object: Awaited<ReturnType<Storage['read']>>;
-    try {
-      object = await this.storage.read(key, range);
-    } catch (error) {
+    const read = download ? this.storage.readOriginal(key, range) : this.storage.read(key, range);
+    const object = await read.catch((error: unknown) => {
       const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
-      if (status === 416) throw new AppException('files.range', 'Rango fuera del archivo.', 416);
+      if (status === 416 || error instanceof InvalidOriginalRange) throw new AppException('files.range', 'Rango fuera del archivo.', 416);
       if (status === 404) throw new NotFoundException('Archivo no disponible.');
       throw error;
-    }
+    });
     res.set({ 'Accept-Ranges': 'bytes', 'Content-Type': mime, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store' });
     if (object.ContentLength !== undefined) res.set('Content-Length', String(object.ContentLength));
     if (object.ContentRange) res.status(206).set('Content-Range', object.ContentRange);
@@ -432,9 +431,9 @@ export class FilesService {
     for (const { row, path } of nodes) {
       if (res.destroyed) return;
       if (row.kind !== 'file' || !row.objectKey) continue;
-      const object = await this.storage.read(row.objectKey);
-      if (!object.Body) continue;
-      const body = object.Body as Readable;
+      const { Body: body } = await this.storage.readOriginal(row.objectKey);
+      if (res.destroyed) { body?.destroy(); return; }
+      if (!body) continue;
       await new Promise<void>((resolve) => {
         let done = false;
         const finish = () => { if (!done) { done = true; resolve(); } };

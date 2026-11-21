@@ -23,15 +23,20 @@ COPY --from=web-build --chown=node:node /app/frontend/.next/static ./frontend/.n
 USER node
 CMD ["node", "frontend/server.js"]
 
-FROM build AS api
+FROM build AS media-runtime
+RUN apt-get update -qq && apt-get install -qq -y --no-install-recommends libjxl-tools && rm -rf /var/lib/apt/lists/*
+RUN install -d -m 0700 -o node -g node /work
+ENV TMPDIR=/work
+
+FROM media-runtime AS api
 WORKDIR /app/backend
 ENV NODE_ENV=production
 USER node
 CMD ["node", "dist/src/main.js"]
 
-FROM build AS worker
+FROM media-runtime AS worker
 RUN apt-get update -qq && apt-get install -qq -y --no-install-recommends ffmpeg fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend
-ENV NODE_ENV=production TMPDIR=/work
+ENV NODE_ENV=production
 USER node
 CMD ["node", "dist/src/worker/main.js"]

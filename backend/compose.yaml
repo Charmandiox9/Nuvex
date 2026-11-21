@@ -71,6 +71,8 @@ services:
       TRUST_PROXY: "1"
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://localhost}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+    volumes:
+      - ${NUVEX_DATA:-./data}/media-work:/work
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }

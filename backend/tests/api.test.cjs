@@ -2,6 +2,7 @@ require('dotenv/config');
 const { createHash, randomUUID } = require('node:crypto');
 const { execFileSync, spawn } = require('node:child_process');
 const { once } = require('node:events');
+const { inflateRawSync } = require('node:zlib');
 const sharp = require('sharp');
 const { hash } = require('@node-rs/argon2');
 const { Secret, TOTP } = require('otpauth');
@@ -19,6 +20,22 @@ suite('REST y PostgreSQL con almacenamiento real', () => {
   const password = 'test password 123456789';
   const prefix = '/api/v1';
   const write = (agent, method, path) => agent[method](prefix + path).set('X-Nuvex-Request', '1');
+  const put = async (name, mime, bytes, parentId = '') => {
+    const upload = await write(client, 'post', '/uploads').send({
+      name, mime, size: bytes.length, parentId, fingerprint: name,
+    }).expect(201);
+    const path = '/uploads/' + upload.body.id;
+    await write(client, 'put', path + '/parts/1').set('Content-Type', 'application/octet-stream').send(bytes).expect(204);
+    return (await write(client, 'post', path + '/complete').send({}).expect(201)).body;
+  };
+  const awaitState = async (id) => {
+    for (let count = 0; count < 50; count++) {
+      const row = await database.entry.findUniqueOrThrow({ where: { id } });
+      if (['ready', 'failed', 'needs-transcode'].includes(row.mediaStatus)) return row;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    throw new Error('El worker no publicó el medio.');
+  };
 
   beforeAll(async () => {
     database = createDatabase();
@@ -138,22 +155,6 @@ suite('REST y PostgreSQL con almacenamiento real', () => {
   }, 240_000);
 
   test('genera derivados, transmite video por rangos y prepara marcas de sesión', async () => {
-    const put = async (name, mime, bytes) => {
-      const upload = await write(client, 'post', '/uploads').send({
-        name, mime, size: bytes.length, parentId: '', fingerprint: name,
-      }).expect(201);
-      const path = '/uploads/' + upload.body.id;
-      await write(client, 'put', path + '/parts/1').set('Content-Type', 'application/octet-stream').send(bytes).expect(204);
-      return (await write(client, 'post', path + '/complete').send({}).expect(201)).body;
-    };
-    const awaitState = async (id) => {
-      for (let count = 0; count < 50; count++) {
-        const row = await database.entry.findUniqueOrThrow({ where: { id } });
-        if (['ready', 'failed', 'needs-transcode'].includes(row.mediaStatus)) return row;
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
-      throw new Error('El worker no publicó el medio.');
-    };
     const pixels = await sharp({ create: { width: 100, height: 80, channels: 3, background: '#9080af' } }).png().toBuffer();
     const image = await put('muestra.png', 'image/png', pixels);
     expect((await awaitState(image.id)).mediaStatus).toBe('ready');
@@ -183,6 +184,48 @@ suite('REST y PostgreSQL con almacenamiento real', () => {
     expect((await awaitState(entry.id)).mediaStatus).toBe('ready');
     await client.get(prefix + '/entries/' + entry.id + '/content?mode=preview')
       .set('Range', 'bytes=0-127').expect('Content-Type', 'video/mp4').expect('Content-Range', /^bytes 0-127\//).expect(206);
+  });
+
+  test('almacena un JPEG más pequeño y descarga el original con metadatos intactos', async () => {
+    const folder = await write(client, 'post', '/folders').send({ name: 'JPEG' }).expect(201);
+    const jpeg = await sharp({ create: { width: 1024, height: 768, channels: 3, background: '#9080af' } })
+      .withMetadata({ orientation: 6 }).jpeg().toBuffer();
+    const entry = await put('original.jpg', 'image/jpeg', jpeg, folder.body.id);
+    const row = await awaitState(entry.id);
+    expect(row.mediaStatus).toBe('ready');
+    const storage = new Storage();
+    const head = await storage.head(row.objectKey);
+    expect(head.ContentLength).toBeLessThan(jpeg.length);
+    expect(head.Metadata['nuvex-jpeg-sha256']).toBe(createHash('sha256').update(jpeg).digest('hex'));
+
+    const path = prefix + '/entries/' + entry.id + '/content';
+    await client.get(path + '?mode=preview').expect('Content-Type', 'image/webp').expect(200);
+    const download = await client.get(path + '?mode=download').expect('Content-Length', String(jpeg.length)).expect(200);
+    expect(download.body).toEqual(jpeg);
+    const range = await client.get(path).set('Range', 'bytes=-15')
+      .expect('Content-Range', `bytes ${jpeg.length - 15}-${jpeg.length - 1}/${jpeg.length}`).expect(206);
+    expect(range.body).toEqual(jpeg.subarray(-15));
+    await client.get(path).set('Range', `bytes=${jpeg.length}-`).expect(416);
+
+    const share = await write(client, 'post', '/shares').send({ entryId: entry.id, allowDownload: true }).expect(201);
+    const guest = request.agent(server);
+    const guestPath = '/guest/' + share.body.id;
+    await write(guest, 'post', guestPath + '/redeem').send({ code: share.body.code }).expect(200);
+    expect((await guest.get(prefix + guestPath + '/content/' + entry.id + '?mode=download').expect(200)).body).toEqual(jpeg);
+
+    const zip = await client.get(prefix + '/entries/' + folder.body.id + '/archive').buffer(true).parse((res, callback) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => callback(null, Buffer.concat(chunks)));
+    }).expect(200);
+    const directory = zip.body.readUInt32LE(zip.body.length - 6);
+    const fileSize = zip.body.readUInt32LE(directory + 20);
+    const fileOffset = 30 + zip.body.readUInt16LE(26) + zip.body.readUInt16LE(28);
+    expect(inflateRawSync(zip.body.subarray(fileOffset, fileOffset + fileSize))).toEqual(jpeg);
+
+    const copy = await write(client, 'post', '/entries/' + entry.id + '/copy').send({ name: 'copia.jpg' }).expect(201);
+    expect((await awaitState(copy.body.id)).mediaStatus).toBe('ready');
+    expect((await client.get(prefix + '/entries/' + copy.body.id + '/content').expect(200)).body).toEqual(jpeg);
   });
 
   test('revisa JSON y exige enlaces directos válidos en cada lote', async () => {

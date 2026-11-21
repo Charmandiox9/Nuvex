@@ -3,7 +3,10 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import type { Entry } from '../../prisma/generated/client';
-import { materialize, saveFile, temporary } from './temporary-files';
+import { log } from '../common/logging';
+import { temporary } from '../common/temporary';
+import { recompressJpeg } from '../storage/jpeg-xl';
+import { materialize, saveFile } from './temporary-files';
 import type { WorkerContext } from './worker-context';
 
 const exec = promisify(execFile);
@@ -26,8 +29,8 @@ export async function renderMedia({ database, storage }: Pick<WorkerContext, 'da
   if (!row.objectKey) return;
   const original = row.objectKey;
   await temporary(async (dir) => {
-    const source = join(dir, 'source');
-    await materialize(storage, original, source);
+    const source = join(dir, row.mime === 'image/jpeg' ? 'source.jpg' : 'source');
+    const { etag, compressed } = await materialize(storage, original, source);
     const prefix = 'media/' + row.id + '/';
     if (row.mime.startsWith('video/')) {
       if (transcode) {
@@ -62,6 +65,18 @@ export async function renderMedia({ database, storage }: Pick<WorkerContext, 'da
     const thumb = await sharp(preview).resize({ width: 420, height: 420, fit: 'inside', withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
     await storage.put(prefix + 'preview.webp', preview, preview.length);
     await storage.put(prefix + 'poster.webp', thumb, thumb.length);
+    if (info.format === 'jpeg' && row.mime === 'image/jpeg' && etag && !compressed) {
+      try {
+        const originalSize = Number(row.size);
+        const result = await recompressJpeg(source, dir, originalSize);
+        if (result) {
+          await storage.replaceWithJpegXl(original, etag, result.bytes, originalSize, result.originalHash);
+          log('info', 'JPEG comprimido', { id: row.id, originalBytes: originalSize, storedBytes: result.bytes.length });
+        }
+      } catch {
+        log('warn', 'No se pudo comprimir el JPEG', { id: row.id });
+      }
+    }
     await database.entry.update({ where: { id: row.id }, data: {
       previewKey: prefix + 'preview.webp', posterKey: prefix + 'poster.webp', mediaStatus: 'ready',
     } });

@@ -2,7 +2,8 @@ import { join } from 'node:path';
 import { serialTransaction } from '../../prisma/transaction';
 import { quotaBytes } from '../storage/storage';
 import { download } from './fetch-file';
-import { saveFile, temporary } from './temporary-files';
+import { temporary } from '../common/temporary';
+import { saveFile } from './temporary-files';
 import type { WorkerContext } from './worker-context';
 
 const imageMime = /^image\/(jpeg|png|webp|gif|avif)$/;
