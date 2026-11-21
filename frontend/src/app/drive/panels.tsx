@@ -9,6 +9,7 @@ import { message } from '@/lib/format';
 import { useI18n } from '@/i18n/provider';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageToggle } from '@/components/language-toggle';
+import { Pagination, pageCount, pageSlice } from '@/components/pagination';
 import type { Locale } from '@/i18n/catalogs';
 import { PasswordPanel, TwoFactorPanel } from './security';
 import { Audit } from './audit';
@@ -17,15 +18,23 @@ type Link = { id: string; entryId: string; expiresAt: string; revokedAt?: string
 type Session = { id: string; current: boolean; createdAt: string; expiresAt: string };
 type ImportItem = { id: string; name?: string; url: string; state: string; error?: string };
 const date = (iso: string, locale: Locale) => new Date(iso).toLocaleString(locale);
+const LINK_PAGE = 6;
+const SESSION_PAGE = 4;
+const IMPORT_PAGE = 5;
 
 export function LinkPanel() {
   const { t, locale } = useI18n();
   const links = useQuery({ queryKey: ['links'], queryFn: () => api<Link[]>('/shares') });
+  const [page, setPage] = useState(1);
+  const all = links.data ?? [];
+  const pages = pageCount(all.length, LINK_PAGE);
+  const current = Math.min(page, pages);
+  const rows = pageSlice(all, current, LINK_PAGE);
   return <section className="panel">
     <h2><Link2 size={20} /> {t('panel.linksTitle')}</h2>
     {links.error && <p className="error">{message(links.error)}</p>}
     {links.data?.length === 0 && <p>{t('panel.linksEmpty')}</p>}
-    {links.data?.map((link) => <article className="transfer" key={link.id}>
+    {rows.map((link) => <article className="transfer" key={link.id}>
       <div><strong>{link.entryName ?? t('panel.sharedLink')}</strong><small>{link.revokedAt ? t('panel.revoked') : t('panel.expires', { date: date(link.expiresAt, locale) })} · {t('panel.usesLeft', { remaining: link.remaining, max: link.maxUses })}</small>
         {link.lastRedeemedAt && <small>{t('panel.lastRedeem', { date: date(link.lastRedeemedAt, locale) })}</small>}
       </div>
@@ -34,6 +43,7 @@ export function LinkPanel() {
         catch (error) { sileo.error({ title: message(error) }); }
       }}>{t('panel.revoke')}</button>}
     </article>)}
+    <Pagination page={current} pages={pages} onSelect={setPage} />
   </section>;
 }
 
@@ -43,6 +53,11 @@ export function Settings() {
   const deepseek = useQuery({ queryKey: ['deepseek'], queryFn: () => api<{ configured: boolean }>('/imports/deepseek') });
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
+  const [sessionPage, setSessionPage] = useState(1);
+  const sessionRows = sessions.data ?? [];
+  const sessionPages = pageCount(sessionRows.length, SESSION_PAGE);
+  const currentSession = Math.min(sessionPage, sessionPages);
+  const visibleSessions = pageSlice(sessionRows, currentSession, SESSION_PAGE);
   async function action(path: string, method: string, payload?: unknown) {
     setError('');
     try {
@@ -75,10 +90,11 @@ export function Settings() {
       <section className="panel">
         <h2><Monitor size={20} /> {t('panel.sessions')}</h2>
         {sessions.error && <p className="error">{message(sessions.error)}</p>}
-        {sessions.data?.map((session) => <article className="transfer" key={session.id}>
+        {visibleSessions.map((session) => <article className="transfer" key={session.id}>
           <div><strong>{session.current ? t('panel.thisSession') : t('panel.otherSession')}</strong><small>{date(session.createdAt, locale)} · {t('panel.expiresAt', { date: date(session.expiresAt, locale) })}</small></div>
           {!session.current && <button className="secondary" onClick={() => action('/auth/sessions/' + session.id, 'DELETE')}>{t('panel.closeSession')}</button>}
         </article>)}
+        <Pagination page={currentSession} pages={sessionPages} onSelect={setSessionPage} />
         <button className="secondary" onClick={() => void revokeOthers()}>{t('security.revokeOthers')}</button>
       </section>
       <Audit />
@@ -109,6 +125,11 @@ export function Imports({ parentId, folderName }: { parentId: string; folderName
   const jobs = useQuery({ queryKey: ['imports'], queryFn: () => api<ImportItem[]>('/imports'), refetchInterval: 4000 });
   const deepseek = useQuery({ queryKey: ['deepseek'], queryFn: () => api<{ configured: boolean }>('/imports/deepseek') });
   const [showConsent, setShowConsent] = useState(false);
+  const [jobPage, setJobPage] = useState(1);
+  const jobRows = jobs.data ?? [];
+  const jobPages = pageCount(jobRows.length, IMPORT_PAGE);
+  const currentJobPage = Math.min(jobPage, jobPages);
+  const visibleJobs = pageSlice(jobRows, currentJobPage, IMPORT_PAGE);
   const selected = candidates.filter((item) => item.checked);
   const suggestionUrls = selected.slice(0, 30).map((item) => item.url);
   const stateKey: Record<string, string> = { queued: 'panel.state.queued', processing: 'panel.state.processing', completed: 'panel.state.completed', failed: 'panel.state.failed' };
@@ -179,13 +200,14 @@ export function Imports({ parentId, folderName }: { parentId: string; folderName
     <section className="panel">
       <h2><RefreshCw size={19} /> {t('panel.recentImports')}</h2>
       {jobs.error && <p className="error">{message(jobs.error)}</p>}
-      {jobs.data?.length === 0 && <p>{t('panel.noImports')}</p>}
-      {jobs.data?.map((item) => <article className="transfer" key={item.id}>
+      {jobRows.length === 0 && <p>{t('panel.noImports')}</p>}
+      {visibleJobs.map((item) => <article className="transfer" key={item.id}>
         <div><strong>{item.name || item.url}</strong><small>{t(stateKey[item.state] ?? item.state)}{item.error && ' · ' + item.error}</small></div>
         {item.state === 'failed' && <button className="secondary" onClick={() => run(async () => {
           await api('/imports/' + item.id + '/retry', 'POST'); await jobs.refetch();
         })}>{t('panel.retry')}</button>}
       </article>)}
+      <Pagination page={currentJobPage} pages={jobPages} onSelect={setJobPage} />
     </section>
   </>;
 }

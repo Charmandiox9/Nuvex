@@ -20,7 +20,7 @@ export async function request<T>(path: string, method = 'GET', data?: unknown, s
 export const api = <T,>(path: string, method = 'GET', data?: unknown, signal?: AbortSignal) =>
   request<T>('/api/v1' + path, method, data, signal);
 
-export async function gql<T>(query: string, variables: Record<string, string | undefined>) {
+export async function gql<T>(query: string, variables: Record<string, string | number | undefined>) {
   const result = await request<{ data: T; errors?: { message: string; extensions?: { originalError?: { statusCode: number } } }[] }>(
     '/graphql', 'POST', { query, variables },
   );

@@ -78,7 +78,7 @@ Definidos con `light-dark(claro, oscuro)` en `:root` (`globals.css`). Usa siempr
 
 - Transiciones CSS de microinteracción: `150ms` (fondo, color, borde de botones).
 - Animaciones coordinadas con Anime.js: el listado entra con `opacity: [0.6, 1]` y `translateY: [5, 0]` en `230ms`, easing `outQuad`.
-- La escena del login usa Three.js (icosaedro en wireframe, color `#adf377`) cargado de forma diferida y liberado al salir.
+- La escena del login usa Three.js: un núcleo icosaédrico con wireframe, capas internas, tres anillos orbitales, nodos y una nube de puntos con halo aditivo. Se carga de forma diferida y libera geometrías, materiales y texturas al salir.
 - `prefers-reduced-motion: reduce` desactiva toda animación y transición; la escena Three.js no se monta en ese caso.
 
 ## Layout y responsive
@@ -88,6 +88,8 @@ Definidos con `light-dark(claro, oscuro)` en `:root` (`globals.css`). Usa siempr
 - Breakpoints: `850px` y `530px`. En móvil (`530px`) la barra superior apila, la búsqueda ocupa el ancho y las tarjetas de candidatos pasan a una columna.
 - Usa `clamp()` para tamaños fluidos; no añadas breakpoints nuevos si un `clamp()` resuelve el caso.
 - **Gutters y densidad**: el contenido vive en una columna centrada (`--content-max`, ~1120 px) dentro del área de trabajo; `.topbar-inner` usa la misma columna y padding, así breadcrumb y búsqueda se alinean con el título. El sidebar es colapsable (solo iconos, 67 px) con preferencia persistida en `nuvex-sidebar`. **Ajustes** usa `.settings-grid` (rejilla de dos columnas; la tarjeta de Integraciones ocupa ambas con `.settings-wide`, y en ≤760 px pasa a una columna); Enlaces, Importaciones y Transferencias usan `.panel-column`. Evita paneles a todo el ancho y formularios demasiado anchos (`.security-form` y `#sec-secret`, máx. 460 px). Los botones sueltos dentro de un panel se ajustan a su contenido (`justify-self: start`).
+- **Listados**: todos usan `Pagination` (`frontend/src/components/pagination.tsx`), con páginas numeradas y anterior/siguiente; los listados por cursor cargan la siguiente página al avanzar. Las carpetas se ordenan antes que los archivos. Cada fila del explorador expone un menú de tres puntos (`RowMenu`) con las acciones aplicables a ese elemento; el panel de selección añade «Seleccionar todos» para la página visible.
+- **Miniaturas**: en cuadrícula el área visual mide `96px`; las carpetas sin icono muestran el glifo grande de carpeta y las que tienen icono lo muestran contenido como miniatura (`object-fit: contain`). En lista el mismo criterio se adapta a `36px`.
 
 ## Accesibilidad
 

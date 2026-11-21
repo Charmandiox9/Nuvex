@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { animate, stagger } from 'animejs';
 import {
-  ArrowLeft, ArrowUpFromLine, ChevronRight, Download, FileJson, Folder, FolderPlus, Grid2X2,
-  HardDrive, Images, Link2, List, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings as SettingsIcon, Trash2, X,
+  ArrowLeft, ArrowUpFromLine, ChevronRight, Copy, Download, Eye, FileJson, Folder, FolderInput, FolderPlus,
+  Grid2X2, HardDrive, Image as ImageIcon, ImageOff, Images, Link2, List, ListChecks, LogOut, PanelLeftClose,
+  PanelLeftOpen, Pencil, RotateCcw, Search, Settings as SettingsIcon, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 import { sileo } from 'sileo';
 import { ApiError, api, content, gql } from '@/lib/api';
@@ -18,6 +19,8 @@ import { Brand } from '@/components/brand';
 import { FileVisual } from '@/components/file-visual';
 import { Skeleton } from '@/components/skeleton';
 import { MediaViewer } from '@/components/media-viewer';
+import { Pagination } from '@/components/pagination';
+import { RowMenu } from '@/components/row-menu';
 import { Imports, LinkPanel, Settings } from './panels';
 import { Transfers } from '@/components/transfers';
 import { useTransfers } from '@/hooks/use-transfers';
@@ -38,6 +41,11 @@ const operationKeys: Record<Operation, string> = {
   folder: 'drive.op.folder', rename: 'drive.op.rename', move: 'drive.op.move', copy: 'drive.op.copy',
   restore: 'drive.op.restore', purge: 'drive.op.purge', share: 'drive.op.share',
 };
+const operationIcons: Record<Operation, LucideIcon> = {
+  folder: FolderPlus, rename: Pencil, move: FolderInput, copy: Copy,
+  restore: RotateCcw, purge: Trash2, share: Link2,
+};
+const PAGE_SIZE = 24;
 const isViewableMedia = (row: Entry) => {
   if (row.kind !== 'file') return false;
   if (row.mime.startsWith('audio/')) return true;
@@ -65,6 +73,7 @@ export default function Drive() {
   const [sizeFilter, setSizeFilter] = useState('');
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [selected, setSelected] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
   const [preview, setPreview] = useState<Entry>();
   const [viewerId, setViewerId] = useState<string>();
   const [op, setOp] = useState<{ name: Operation; rows: Entry[] }>();
@@ -74,6 +83,7 @@ export default function Drive() {
   const [operationError, setOperationError] = useState('');
   const [suggested, setSuggested] = useState('');
   const [busy, setBusy] = useState(false);
+  const [folderPage, setFolderPage] = useState(1);
   const [movePath, setMovePath] = useState<Entry[]>([]);
   const [restoreOriginal, setRestoreOriginal] = useState(true);
   const [draggingId, setDraggingId] = useState<string>();
@@ -111,7 +121,7 @@ export default function Drive() {
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => gql<{ entries: Page }>(
       driveQuery,
-      { view, parentId, search: filter, cursor: pageParam, sort, kind: filters.kind, mimePrefix: filters.mimePrefix, from: filters.from, minSize: filters.minSize, maxSize: filters.maxSize },
+      { view, parentId, search: filter, cursor: pageParam, limit: PAGE_SIZE, sort, kind: filters.kind, mimePrefix: filters.mimePrefix, from: filters.from, minSize: filters.minSize, maxSize: filters.maxSize },
     ).then((data) => data.entries),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: Boolean(me.data && showListing),
@@ -135,17 +145,23 @@ export default function Drive() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: Boolean(me.data && choosingFolder),
   });
+  const destinationPages = destinations.data?.pages.length ?? 0;
+  const destinationIndex = Math.min(folderPage, Math.max(destinationPages, 1));
+  const destinationRows = destinations.data?.pages[destinationIndex - 1]?.items ?? [];
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setFilter(search), 220);
     return () => window.clearTimeout(timeout);
   }, [search]);
+  useEffect(() => { setPage(1); setSelected([]); }, [view, parentId, filter, sort, typeFilter, dateFilter, sizeFilter]);
+  useEffect(() => { setSelected([]); }, [page]);
+  useEffect(() => { setFolderPage(1); }, [destination]);
   useEffect(() => {
     if (!listing.current || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const items = Array.from(listing.current.querySelectorAll('.entries article'));
     const animation = animate(items, { opacity: [0, 1], translateY: [6, 0], duration: 240, delay: stagger(26), ease: 'outQuad' });
     return () => { animation.revert(); };
-  }, [view, layout, parentId, entries.data]);
+  }, [view, layout, parentId, page, entries.data]);
   useEffect(() => {
     if (!dialog.current) return;
     if (op || preview) {
@@ -159,10 +175,14 @@ export default function Drive() {
     void cache.invalidateQueries({ queryKey: ['destinations'] });
   };
   const transfers = useTransfers(refresh, t);
-  const rows = entries.data?.pages.flatMap((page) => page.items) ?? [];
-  const mediaItems = rows.filter(isViewableMedia);
+  const allRows = entries.data?.pages.flatMap((item) => item.items) ?? [];
+  const loadedPages = entries.data?.pages.length ?? 0;
+  const pageIndex = Math.min(page, Math.max(loadedPages, 1));
+  const rows = entries.data?.pages[pageIndex - 1]?.items ?? [];
+  const mediaItems = allRows.filter(isViewableMedia);
   const viewerIndex = viewerId ? mediaItems.findIndex((item) => item.id === viewerId) : -1;
   const active = rows.filter((row) => selected.includes(row.id));
+  const allSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id));
   const detail = previewDetails.data ?? preview;
   const busyMedia = detail && ['processing', 'queued'].includes(detail.mediaStatus);
   const clearDialog = () => { setOp(undefined); setPreview(undefined); setShare(undefined); setOperationError(''); setSuggested(''); };
@@ -172,6 +192,20 @@ export default function Drive() {
     setSuggested('');
     setOperationError('');
     setOp({ name, rows });
+  }
+  async function goToPage(target: number) {
+    if (target < 1 || target === pageIndex) return;
+    if (target <= loadedPages) { setPage(target); return; }
+    if (!entries.hasNextPage || entries.isFetchingNextPage) return;
+    await entries.fetchNextPage();
+    setPage(target);
+  }
+  async function goToFolderPage(target: number) {
+    if (target < 1 || target === destinationIndex) return;
+    if (target <= destinationPages) { setFolderPage(target); return; }
+    if (!destinations.hasNextPage || destinations.isFetchingNextPage) return;
+    await destinations.fetchNextPage();
+    setFolderPage(target);
   }
 
   function navigate(next: View) { setView(next); setSearch(''); setFilter(''); setSelected([]); setTypeFilter(''); setDateFilter(''); setSizeFilter(''); }
@@ -185,6 +219,47 @@ export default function Drive() {
     if (isViewableMedia(row)) { setViewerId(row.id); return; }
     setPreview(row);
     setOperationError('');
+  }
+  function rowActions(row: Entry) {
+    if (view === 'trash') return <>
+      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openOp('restore', [row])}>
+        <RotateCcw size={16} /> {t('drive.op.restore')}
+      </button>
+      <button type="button" role="menuitem" className="row-menu-item danger-text" onClick={() => openOp('purge', [row])}>
+        <Trash2 size={16} /> {t('drive.op.purge')}
+      </button>
+    </>;
+    return <>
+      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openRow(row)}>
+        {row.kind === 'folder' ? <Folder size={16} /> : <Eye size={16} />} {t('drive.open')}
+      </button>
+      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openOp('rename', [row])}>
+        <Pencil size={16} /> {t('drive.op.rename')}
+      </button>
+      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openOp('move', [row])}>
+        <FolderInput size={16} /> {t('drive.op.move')}
+      </button>
+      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openOp('copy', [row])}>
+        <Copy size={16} /> {t('drive.op.copy')}
+      </button>
+      <button type="button" role="menuitem" className="row-menu-item" onClick={() => openOp('share', [row])}>
+        <Link2 size={16} /> {t('drive.op.share')}
+      </button>
+      {row.kind === 'file'
+        ? <a role="menuitem" className="row-menu-item" href={content(row.id)}><Download size={16} /> {t('drive.download')}</a>
+        : <a role="menuitem" className="row-menu-item" href={'/api/v1/entries/' + row.id + '/archive'}><Download size={16} /> {t('drive.downloadFolder')}</a>}
+      {row.kind === 'folder' && <>
+        <button type="button" role="menuitem" className="row-menu-item" onClick={() => chooseIcon(row.id)}>
+          <ImageIcon size={16} /> {t('drive.setIcon')}
+        </button>
+        {row.hasIcon && <button type="button" role="menuitem" className="row-menu-item" onClick={() => void removeIcon(row.id)}>
+          <ImageOff size={16} /> {t('drive.removeIcon')}
+        </button>}
+      </>}
+      <button type="button" role="menuitem" className="row-menu-item danger-text" onClick={() => void trashRows([row])}>
+        <Trash2 size={16} /> {t('drive.moveToTrash')}
+      </button>
+    </>;
   }
 
   async function perform(event: FormEvent<HTMLFormElement>) {
@@ -264,14 +339,16 @@ export default function Drive() {
     finally { setSending(false); }
   }
 
-  async function trash() {
+  async function trashRows(targets: Entry[]) {
+    if (!targets.length) return;
     try {
-      for (const row of active) await api('/entries/' + row.id, 'DELETE');
+      for (const row of targets) await api('/entries/' + row.id, 'DELETE');
       setSelected([]);
       sileo.success({ title: t('drive.trashed') });
     } catch (error) { sileo.error({ title: message(error) }); }
     finally { refresh(); }
   }
+  function trash() { return trashRows(active); }
 
   function startRowDrag(event: DragEvent<HTMLElement>, row: Entry) {
     if (view === 'trash') return;
@@ -422,18 +499,28 @@ export default function Drive() {
             </div>
           </div>
           {active.length > 0 && <div className="selection actions">
-            <button className="text-button" onClick={() => setSelected([])}>{t('drive.clearSelection')}</button>
-            {(view === 'trash' ? ['restore', 'purge'] as const : ['rename', 'move', 'copy', 'share'] as const).map((action) => (
-              !['rename','share'].includes(action) || active.length === 1
-                ? <button className={action === 'purge' ? 'danger' : 'secondary'} key={action} onClick={() => openOp(action, active)}>{t(operationKeys[action])}</button>
-                : null
-            ))}
-            {view !== 'trash' && <button className="secondary" onClick={() => void trash()}>{t('drive.moveToTrash')}</button>}
-            {view !== 'trash' && active.length === 1 && active[0].kind === 'file' && <a className="secondary" href={content(active[0].id)}><Download size={15} /> {t('drive.download')}</a>}
-            {view !== 'trash' && active.length === 1 && active[0].kind === 'folder' && <a className="secondary" href={'/api/v1/entries/' + active[0].id + '/archive'}><Download size={15} /> {t('drive.downloadFolder')}</a>}
+            <button type="button" className="icon-button" aria-label={t('drive.clearSelection')} title={t('drive.clearSelection')}
+              onClick={() => setSelected([])}><X size={17} /></button>
+            {!allSelected && <button type="button" className="icon-button" aria-label={t('drive.selectAll')} title={t('drive.selectAll')}
+              onClick={() => setSelected(rows.map((row) => row.id))}><ListChecks size={17} /></button>}
+            {(view === 'trash' ? ['restore', 'purge'] as const : ['rename', 'move', 'copy', 'share'] as const).map((action) => {
+              if (['rename', 'share'].includes(action) && active.length !== 1) return null;
+              const Icon = operationIcons[action];
+              const label = t(operationKeys[action]);
+              return <button type="button" key={action} className={action === 'purge' ? 'icon-button danger' : 'icon-button'}
+                aria-label={label} title={label} onClick={() => openOp(action, active)}><Icon size={17} /></button>;
+            })}
+            {view !== 'trash' && <button type="button" className="icon-button" aria-label={t('drive.moveToTrash')} title={t('drive.moveToTrash')}
+              onClick={() => void trash()}><Trash2 size={17} /></button>}
+            {view !== 'trash' && active.length === 1 && active[0].kind === 'file' && <a className="icon-button" href={content(active[0].id)}
+              aria-label={t('drive.download')} title={t('drive.download')}><Download size={17} /></a>}
+            {view !== 'trash' && active.length === 1 && active[0].kind === 'folder' && <a className="icon-button"
+              href={'/api/v1/entries/' + active[0].id + '/archive'} aria-label={t('drive.downloadFolder')} title={t('drive.downloadFolder')}><Download size={17} /></a>}
             {view !== 'trash' && active.length === 1 && active[0].kind === 'folder' && <>
-              <button className="secondary" onClick={() => chooseIcon(active[0].id)}>{t('drive.setIcon')}</button>
-              {active[0].hasIcon && <button className="secondary" onClick={() => void removeIcon(active[0].id)}>{t('drive.removeIcon')}</button>}
+              <button type="button" className="icon-button" aria-label={t('drive.setIcon')} title={t('drive.setIcon')}
+                onClick={() => chooseIcon(active[0].id)}><ImageIcon size={17} /></button>
+              {active[0].hasIcon && <button type="button" className="icon-button" aria-label={t('drive.removeIcon')} title={t('drive.removeIcon')}
+                onClick={() => void removeIcon(active[0].id)}><ImageOff size={17} /></button>}
             </>}
           </div>}
           {entries.error && <p className="error" role="alert">{message(entries.error)}</p>}
@@ -445,7 +532,7 @@ export default function Drive() {
               </div>
             ))}
           </div>}
-          {entries.isSuccess && !rows.length && <div className="empty">
+          {entries.isSuccess && !allRows.length && <div className="empty">
             <div className="empty-icon">{view === 'trash' ? <Trash2 /> : view === 'gallery' ? <Images /> : <Folder />}</div>
             <h2>{filter ? t('drive.emptyNoResults') : view === 'trash' ? t('drive.emptyTrash') : view === 'gallery' ? t('drive.emptyGallery') : t('drive.emptyFolder')}</h2>
             {view === 'files' && !filter && <p>{t('drive.emptyHint')}</p>}
@@ -465,9 +552,11 @@ export default function Drive() {
                 <FileVisual row={row} /><span><strong title={row.name}>{row.name}</strong><small>{row.kind === 'folder' ? t('drive.folder') : formatBytes(row.size, locale)}{row.mediaStatus === 'failed' ? ' · ' + t('drive.mediaFailed') : ''}</small></span>
               </button>
               <time dateTime={row.updatedAt}>{new Date(row.updatedAt).toLocaleDateString(locale)}</time>
+              <RowMenu label={t('drive.rowActions')}>{rowActions(row)}</RowMenu>
             </article>)}
           </div>}
-          {entries.hasNextPage && <button className="secondary more" disabled={entries.isFetchingNextPage} onClick={() => void entries.fetchNextPage()}>{t('drive.loadMore')}</button>}
+          <Pagination page={pageIndex} pages={loadedPages} hasNext={Boolean(entries.hasNextPage)}
+            busy={entries.isFetchingNextPage} onSelect={(target) => void goToPage(target)} />
         </div>}
         {view === 'transfers' && <div className="panel-column"><Transfers transfers={transfers.transfers} cancel={transfers.cancel} /></div>}
         {view === 'imports' && <div className="panel-column"><Imports parentId={parentId} folderName={folderName} /></div>}
@@ -500,9 +589,10 @@ export default function Drive() {
             {choosingFolder && <div className="folder-picker">
               <div className="actions"><strong>{movePath.at(-1)?.name ?? t('drive.section.files')}</strong>{movePath.length > 0 && <button type="button" className="text-button" onClick={() => setMovePath(movePath.slice(0, -1))}>{t('drive.upOneLevel')}</button>}</div>
               {destinations.error && <p className="error">{message(destinations.error)}</p>}
-              {destinations.data?.pages.flatMap((page) => page.items).filter((row) => row.kind === 'folder' && !op.rows.some((entry) => entry.id === row.id)).map((row) =>
+              {destinationRows.filter((row) => row.kind === 'folder' && !op.rows.some((entry) => entry.id === row.id)).map((row) =>
                 <button className="secondary" type="button" key={row.id} onClick={() => setMovePath([...movePath, row])}><Folder size={16} /> {row.name}</button>)}
-              {destinations.hasNextPage && <button className="secondary" type="button" onClick={() => void destinations.fetchNextPage()}>{t('drive.moreFolders')}</button>}
+              <Pagination page={destinationIndex} pages={destinationPages} hasNext={Boolean(destinations.hasNextPage)}
+                busy={destinations.isFetchingNextPage} onSelect={(target) => void goToFolderPage(target)} />
             </div>}
             {op.name === 'share' && <>
               <label htmlFor="share-hours">{t('drive.shareHours')}</label><input name="hours" id="share-hours" type="number" min="1" max="720" defaultValue="24" required />
