@@ -21,13 +21,13 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Backend: `POST /auth/recovery/regenerate`.
 - [x] Backend: `POST /auth/2fa/disable` (contraseña + código) y `POST /auth/sessions/revoke-all`.
 - [x] Frontend: panel «Seguridad» en Ajustes (cambio de contraseña, re‑enrolar TOTP, regenerar códigos, desactivar 2FA).
-- [x] Tests: integración de endpoints (cambio de contraseña, códigos, TOTP y sesiones). Sin migración. (e2e de navegador pendiente.)
+- [x] Tests: integración de endpoints y e2e de navegador del cambio de contraseña. Sin migración.
 
 ### 2. Visor de medios tipo lightbox — impacto visual
 - [x] Frontend: `components/media-viewer.tsx` (lista + índice; ←/→, `Esc`, swipe, zoom).
 - [x] Integrar en galería y en el explorador (navegación dentro de los medios cargados).
-- [ ] Paginar el visor al llegar al final (pendiente).
-- [ ] Tests: e2e de navegador (abrir, avanzar, cerrar; teclado). Sin cambios de backend.
+- [x] Paginar el visor cerca del final.
+- [ ] Tests: e2e del visor (requiere el worker en el harness para procesar medios). Sin cambios de backend.
 
 ### 3. Descarga de carpeta (ZIP)
 - [ ] Backend: `GET /entries/:id/archive` (streaming, exclusión de papelera, límites, solo `ownerId`).
