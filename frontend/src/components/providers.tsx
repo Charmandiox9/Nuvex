@@ -32,7 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return <I18nProvider>
     <QueryClientProvider client={client}>
       {children}
-      <Toaster position="bottom-right" theme={theme} />
+      <Toaster position="bottom-right" theme={theme} options={{ fill: theme === 'dark' ? '#1a211b' : '#ffffff' }} />
       <ServiceWorker />
     </QueryClientProvider>
   </I18nProvider>;

@@ -194,6 +194,16 @@ progress::-moz-progress-bar { background: var(--accent); }
 .panel > button { justify-self: start; }
 #sec-secret { max-width: 460px; }
 .security-form { max-width: 460px; }
+[data-sileo-title] { text-transform: none; }
+.skeleton { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--surface) 25%, var(--raised) 37%, var(--surface) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite; }
+@keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.skeleton-list { border: 1px solid var(--line); border-radius: 12px; overflow: clip; }
+.skeleton-row { display: flex; align-items: center; gap: 13px; padding: 13px; background: var(--sidebar); }
+.skeleton-row + .skeleton-row { border-top: 1px solid var(--line); }
+.skeleton-lines { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.primary:active, .secondary:active, .danger:active, .icon-button:active, .text-button:active { transform: scale(.97); }
+dialog[open] .dialog-inner { animation: dialog-in 180ms cubic-bezier(.2, .7, .2, 1); }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(6px) scale(.99); } to { opacity: 1; transform: none; } }
 .panel h2 { display: flex; align-items: center; gap: 8px; }
 .panel h2 svg { color: var(--accent); }
 .transfer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; border-bottom: 1px solid var(--line); padding: 9px 0; }

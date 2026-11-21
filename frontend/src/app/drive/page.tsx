@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { animate } from 'animejs';
+import { animate, stagger } from 'animejs';
 import {
   ArrowLeft, ArrowUpFromLine, ChevronRight, Download, FileJson, Folder, FolderPlus, Grid2X2,
   HardDrive, Images, Link2, List, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings as SettingsIcon, Trash2, X,
@@ -16,6 +16,7 @@ import { destinationQuery, driveQuery, previewQuery } from '@/graphql/entries';
 import type { Entry, Page } from '@/types/entry';
 import { Brand } from '@/components/brand';
 import { FileVisual } from '@/components/file-visual';
+import { Skeleton } from '@/components/skeleton';
 import { MediaViewer } from '@/components/media-viewer';
 import { Imports, LinkPanel, Settings } from './panels';
 import { Transfers } from '@/components/transfers';
@@ -141,9 +142,10 @@ export default function Drive() {
   }, [search]);
   useEffect(() => {
     if (!listing.current || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animation = animate(listing.current, { opacity: [0.6, 1], translateY: [5, 0], duration: 230, ease: 'outQuad' });
+    const items = Array.from(listing.current.querySelectorAll('.entries article'));
+    const animation = animate(items, { opacity: [0, 1], translateY: [6, 0], duration: 240, delay: stagger(26), ease: 'outQuad' });
     return () => { animation.revert(); };
-  }, [view, layout, parentId]);
+  }, [view, layout, parentId, entries.data]);
   useEffect(() => {
     if (!dialog.current) return;
     if (op || preview) {
@@ -338,7 +340,7 @@ export default function Drive() {
       <div className="sidebar-bottom">
         <div className="storage"><HardDrive size={15} /> <span>{t('drive.storage')}</span>
           <progress aria-label={t('drive.quotaAria')} value={Number(quota.data?.used ?? 0)} max={Number(quota.data?.quota ?? 1)} />
-          <small>{t('drive.quotaUsed', { used: formatBytes(quota.data?.used ?? 0, locale), quota: formatBytes(quota.data?.quota ?? 0, locale) })}</small>
+          <small>{quota.isPending ? <Skeleton width={110} height={10} /> : t('drive.quotaUsed', { used: formatBytes(quota.data?.used ?? 0, locale), quota: formatBytes(quota.data?.quota ?? 0, locale) })}</small>
         </div>
         <button className="text-button" onClick={async () => {
           try { await api('/auth/logout', 'POST'); cache.clear(); router.replace('/'); }
@@ -435,7 +437,14 @@ export default function Drive() {
             </>}
           </div>}
           {entries.error && <p className="error" role="alert">{message(entries.error)}</p>}
-          {entries.isPending && <p role="status">{t('drive.loading')}</p>}
+          {entries.isPending && <div className="skeleton-list" aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div className="skeleton-row" key={index}>
+                <Skeleton width={36} height={36} rounded={7} />
+                <span className="skeleton-lines"><Skeleton width="38%" /><Skeleton width="22%" height={10} /></span>
+              </div>
+            ))}
+          </div>}
           {entries.isSuccess && !rows.length && <div className="empty">
             <div className="empty-icon">{view === 'trash' ? <Trash2 /> : view === 'gallery' ? <Images /> : <Folder />}</div>
             <h2>{filter ? t('drive.emptyNoResults') : view === 'trash' ? t('drive.emptyTrash') : view === 'gallery' ? t('drive.emptyGallery') : t('drive.emptyFolder')}</h2>
