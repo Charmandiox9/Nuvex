@@ -14,6 +14,7 @@ import type { ChangeBody, FolderBody, UploadBody } from './files.dto';
 
 type Db = Database['client'] | Prisma.TransactionClient;
 type Destination = { ownerId: string; parentId: string; name: string };
+type ListFilters = { kind?: string; mimePrefix?: string; minSize?: bigint; maxSize?: bigint; from?: Date; to?: Date };
 const zipSegment = (name: string) => {
   const cleaned = Array.from(name).filter((char) => char !== '/' && char !== '\\' && char.charCodeAt(0) >= 32).join('').trim();
   return cleaned && !/^\.+$/.test(cleaned) ? cleaned : 'archivo';
@@ -78,21 +79,38 @@ export class FilesService {
     throw new ConflictException({ statusCode: 409, message: 'Ya existe un elemento con ese nombre.', suggestedName });
   }
 
-  async list(ownerId: string, parentId: string, search: string, view: string, cursor?: string, sort = 'name') {
+  async list(ownerId: string, parentId: string, search: string, view: string, cursor?: string, sort = 'name', filters: ListFilters = {}) {
     if (view === 'files') await this.folder(ownerId, parentId);
     const query = search.trim().slice(0, 200);
+    const hasFilters = Boolean(filters.kind || filters.mimePrefix
+      || filters.minSize !== undefined || filters.maxSize !== undefined || filters.from || filters.to);
+    const global = view === 'gallery' || (view === 'files' && Boolean(query || hasFilters));
     const sortBy: Prisma.EntryOrderByWithRelationInput = sort === 'recent' ? { updatedAt: 'desc' } : sort === 'size' ? { size: 'desc' } : { name: 'asc' };
     const rows = await this.db.client.entry.findMany({
       where: {
         ownerId, trashedAt: view === 'trash' ? { not: null } : null,
         ...(view === 'gallery' ? { mediaStatus: { not: 'none' } } : {}),
-        ...(view === 'files' && !query ? { parentId } : {}),
+        ...(view === 'files' && !global ? { parentId } : {}),
         ...(query ? { name: { contains: query, mode: 'insensitive' } } : {}),
+        ...(filters.kind ? { kind: filters.kind } : {}),
+        ...(filters.mimePrefix ? { mime: { startsWith: filters.mimePrefix } } : {}),
+        ...(filters.minSize !== undefined || filters.maxSize !== undefined ? {
+          size: {
+            ...(filters.minSize !== undefined ? { gte: filters.minSize } : {}),
+            ...(filters.maxSize !== undefined ? { lte: filters.maxSize } : {}),
+          },
+        } : {}),
+        ...(filters.from || filters.to ? {
+          updatedAt: {
+            ...(filters.from ? { gte: filters.from } : {}),
+            ...(filters.to ? { lte: filters.to } : {}),
+          },
+        } : {}),
       },
       orderBy: [sortBy, { id: 'asc' }], take: 101, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
     const page = rows.slice(0, 100);
-    const visible = view !== 'trash' && (query || view === 'gallery')
+    const visible = view !== 'trash' && (query || hasFilters || view === 'gallery')
       ? (await Promise.all(page.map(async (row) => {
         try { return await this.active(ownerId, row.id); }
         catch (error) { if (error instanceof NotFoundException) return null; throw error; }

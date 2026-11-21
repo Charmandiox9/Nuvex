@@ -5,6 +5,22 @@ import { AuthService } from '../auth/auth.service';
 import { serializeEntry } from './file-entry';
 import { FilesService } from './files.service';
 
+function parseSize(value: string | undefined, label: string): bigint | undefined {
+  if (!value) return undefined;
+  try {
+    const size = BigInt(value);
+    if (size < 0n) throw new Error();
+    return size;
+  } catch { throw new BadRequestException('Tamaño ' + label + ' inválido.'); }
+}
+
+function parseDate(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new BadRequestException('Fecha inválida.');
+  return date;
+}
+
 @ObjectType()
 class FileItem {
   @Field() id!: string;
@@ -37,9 +53,24 @@ export class FilesResolver {
     @Args('view', { type: () => String, defaultValue: 'files' }) view: string,
     @Args('cursor', { type: () => String, nullable: true }) cursor?: string,
     @Args('sort', { type: () => String, defaultValue: 'name' }) sort = 'name',
+    @Args('kind', { type: () => String, nullable: true }) kind?: string,
+    @Args('mimePrefix', { type: () => String, nullable: true }) mimePrefix?: string,
+    @Args('minSize', { type: () => String, nullable: true }) minSize?: string,
+    @Args('maxSize', { type: () => String, nullable: true }) maxSize?: string,
+    @Args('from', { type: () => String, nullable: true }) from?: string,
+    @Args('to', { type: () => String, nullable: true }) to?: string,
   ) {
     if (!['files', 'gallery', 'trash'].includes(view)) throw new BadRequestException('Vista inválida.');
-    return this.files.list((await this.auth.session(req)).ownerId, parentId, search, view, cursor, sort);
+    if (kind && !['file', 'folder'].includes(kind)) throw new BadRequestException('Tipo inválido.');
+    const filters = {
+      kind: kind || undefined,
+      mimePrefix: mimePrefix ? mimePrefix.slice(0, 100) : undefined,
+      minSize: parseSize(minSize, 'mínimo'),
+      maxSize: parseSize(maxSize, 'máximo'),
+      from: parseDate(from),
+      to: parseDate(to),
+    };
+    return this.files.list((await this.auth.session(req)).ownerId, parentId, search, view, cursor, sort, filters);
   }
 
   @GqlQuery(() => FileItem)
