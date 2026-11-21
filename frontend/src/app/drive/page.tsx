@@ -59,7 +59,8 @@ export default function Drive() {
   const [preview, setPreview] = useState<Entry>();
   const [viewerId, setViewerId] = useState<string>();
   const [op, setOp] = useState<{ name: Operation; rows: Entry[] }>();
-  const [share, setShare] = useState<{ code: string; path: string }>();
+  const [share, setShare] = useState<{ id: string; code: string; path: string; qr?: string }>();
+  const [sending, setSending] = useState(false);
   const [operationError, setOperationError] = useState('');
   const [suggested, setSuggested] = useState('');
   const [busy, setBusy] = useState(false);
@@ -185,7 +186,7 @@ export default function Drive() {
     try {
       if (op.name === 'folder') await api('/folders', 'POST', { name, parentId });
       else if (op.name === 'share') {
-        setShare(await api('/shares', 'POST', {
+        setShare(await api<{ id: string; code: string; path: string; qr?: string }>('/shares', 'POST', {
           entryId: op.rows[0].id, hours: Number(input.get('hours')), uses: Number(input.get('uses')),
           allowDownload: input.get('downloads') === 'on',
         }));
@@ -212,6 +213,18 @@ export default function Drive() {
       setOperationError(message(error));
       if (error instanceof ApiError) setSuggested(error.suggestedName ?? '');
     } finally { setBusy(false); refresh(); }
+  }
+
+  async function sendShare(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!share) return;
+    const to = String(new FormData(event.currentTarget).get('email') ?? '');
+    setSending(true);
+    try {
+      await api('/shares/' + share.id + '/send', 'POST', { to, code: share.code });
+      sileo.success({ title: t('drive.shareEmailSent') });
+    } catch (error) { sileo.error({ title: message(error) }); }
+    finally { setSending(false); }
   }
 
   async function trash() {
@@ -410,6 +423,12 @@ export default function Drive() {
             <label htmlFor="share-link">{t('drive.shareLink')}</label><input id="share-link" readOnly value={location.origin + share.path} />
             <label htmlFor="share-code">{t('drive.shareCode')}</label><input id="share-code" readOnly value={share.code} />
             <p>{t('drive.shareHint')}</p>
+            {share.qr && <img className="share-qr" src={share.qr} alt={t('drive.shareQrAlt')} width={160} height={160} />}
+            <form className="settings-form" onSubmit={sendShare}>
+              <label htmlFor="share-email">{t('drive.shareEmailLabel')}</label>
+              <input id="share-email" name="email" type="email" required maxLength={200} autoComplete="off" />
+              <button className="secondary" disabled={sending}>{t('drive.shareEmailSend')}</button>
+            </form>
           </div> : <form className="stack" onSubmit={perform}>
             {(op.name === 'folder' || op.name === 'rename' || ((choosingFolder || op.name === 'restore') && op.rows.length === 1)) &&
               <><label htmlFor="operation-name">{t('drive.name')}</label><input id="operation-name" key={suggested || op.name} name="name" defaultValue={suggested || op.rows[0]?.name || ''} required maxLength={200} /></>}
