@@ -14,3 +14,4 @@ openapi.json
 next-env.d.ts
 data/
 backup-state/
+scripts/
