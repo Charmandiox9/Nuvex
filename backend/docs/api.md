@@ -25,4 +25,4 @@ query Files($parent: String!, $cursor: String) {
 }
 ```
 
-Usa `view: "gallery"` para medios y `view: "trash"` para la papelera. El argumento opcional `search` busca por nombre.
+Usa `view: "gallery"` para medios y `view: "trash"` para la papelera. El argumento opcional `search` busca por nombre. Filtros opcionales: `kind` (`file` o `folder`), `mimePrefix`, `minSize`/`maxSize` (bytes como cadena decimal) y `from`/`to` (ISO sobre `updatedAt`). Con `search` o cualquier filtro, la consulta se hace sobre toda la unidad.

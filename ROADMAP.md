@@ -41,8 +41,9 @@ Principios para todo el plan (según `AGENTS.md`):
 ## Fase 2 · Prioridad media
 
 ### 5. Filtros y búsqueda avanzada
-- [ ] GraphQL `entries`: `kind`, `mimePrefix`, `minSize`, `maxSize`, `from`, `to`.
-- [ ] UI: chips de filtro y alternar «toda la unidad / esta carpeta».
+- [x] GraphQL `entries`: `kind`, `mimePrefix`, `minSize`, `maxSize`, `from`, `to` (validados).
+- [x] UI: filtros de tipo, fecha y tamaño; al filtrar o buscar, se consulta toda la unidad.
+- [x] Tests de integración de filtros. Sin migración.
 
 ### 6. Soporte de audio
 - [ ] Backend: servir `audio/*` en `mode=preview` inline (contenido propio e invitado).
