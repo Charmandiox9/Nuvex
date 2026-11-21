@@ -49,6 +49,7 @@ model Entry {
   previewKey String?
   posterKey String?
   videoKey String?
+  iconKey String?
   mediaStatus String @default("none")
   trashedAt DateTime?
   purging Boolean @default(false)

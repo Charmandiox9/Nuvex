@@ -17,5 +17,6 @@ export function serializeEntry(row: Entry) {
     id: row.id, parentId: row.parentId, name: row.name, kind: row.kind, mime: row.mime,
     size: row.size.toString(), mediaStatus: row.mediaStatus, updatedAt: row.updatedAt.toISOString(),
     trashedAt: row.trashedAt?.toISOString(), hasPreview: Boolean(row.previewKey || row.videoKey || row.posterKey),
+    hasIcon: Boolean(row.iconKey),
   };
 }

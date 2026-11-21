@@ -18,7 +18,7 @@ export async function purge({ database, storage }: Pick<WorkerContext, 'database
     pending.push(...await database.entry.findMany({ where: { ownerId: row.ownerId, parentId: row.id } }));
   }
   for (const row of descendants.reverse()) {
-    const keys = new Set([row.objectKey, row.previewKey, row.posterKey, row.videoKey].filter((key): key is string => Boolean(key)));
+    const keys = new Set([row.objectKey, row.previewKey, row.posterKey, row.videoKey, row.iconKey].filter((key): key is string => Boolean(key)));
     for (const key of keys) await storage.delete(key);
     await database.entry.deleteMany({ where: { id: row.id } });
   }

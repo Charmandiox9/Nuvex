@@ -52,6 +52,16 @@ export class FileController {
     await this.files.remove(await this.owner(req), id, body.confirmed);
   }
 
+  @Post('entries/:id/icon')
+  async setIcon(@Req() req: Request, @Param('id') id: string) {
+    return this.files.setIcon(await this.owner(req), id, req);
+  }
+
+  @Delete('entries/:id/icon') @HttpCode(204)
+  async removeIcon(@Req() req: Request, @Param('id') id: string) {
+    await this.files.removeIcon(await this.owner(req), id);
+  }
+
   @Post('entries/:id/process') @HttpCode(202)
   async process(@Req() req: Request, @Param('id') id: string, @Query('video') video?: string) {
     await this.files.process(await this.owner(req), id, video === '1');

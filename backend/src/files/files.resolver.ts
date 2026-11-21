@@ -33,6 +33,7 @@ class FileItem {
   @Field({ nullable: true }) trashedAt?: string;
   @Field() mediaStatus!: string;
   @Field() hasPreview!: boolean;
+  @Field() hasIcon!: boolean;
 }
 
 @ObjectType()

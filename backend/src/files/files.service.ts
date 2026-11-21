@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
 import archiver from 'archiver';
+import sharp from 'sharp';
 import { BadRequestException, ConflictException, HttpException, Injectable, NotFoundException, UnsupportedMediaTypeException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { Entry, Prisma } from '../../prisma/generated/client';
@@ -208,6 +209,36 @@ export class FilesService {
     await this.queue.enqueue('purge', id);
   }
 
+  async setIcon(ownerId: string, id: string, req: Request) {
+    const row = await this.active(ownerId, id);
+    if (row.kind !== 'folder') throw new BadRequestException('El icono solo aplica a carpetas.');
+    const chunks: Buffer[] = [];
+    let received = 0;
+    for await (const chunk of req) {
+      const bytes = Buffer.from(chunk);
+      received += bytes.length;
+      if (received > 5_000_000) throw new BadRequestException('La imagen es demasiado grande.');
+      chunks.push(bytes);
+    }
+    if (!received) throw new BadRequestException('Falta la imagen.');
+    const image = sharp(Buffer.concat(chunks, received), { limitInputPixels: 40_000_000 });
+    const info = await image.metadata();
+    if (!info.format || !['jpeg', 'png', 'webp', 'gif', 'heif'].includes(info.format)) {
+      throw new UnsupportedMediaTypeException('Formato de imagen no admitido.');
+    }
+    const output = await image.rotate().resize({ width: 256, height: 256, fit: 'cover' }).webp({ quality: 82 }).toBuffer();
+    const key = 'icons/' + ownerId + '/' + id + '.webp';
+    await this.storage.put(key, output, output.length);
+    await this.db.client.entry.update({ where: { id }, data: { iconKey: key } });
+    return serializeEntry(await this.entry(ownerId, id));
+  }
+
+  async removeIcon(ownerId: string, id: string) {
+    const row = await this.active(ownerId, id);
+    if (row.iconKey) await this.storage.delete(row.iconKey).catch(() => undefined);
+    await this.db.client.entry.update({ where: { id }, data: { iconKey: null } });
+  }
+
   async reserve(tx: Db, ownerId: string, extra: bigint) {
     const [existing, pending] = await Promise.all([
       tx.entry.aggregate({ where: { ownerId }, _sum: { size: true } }),
@@ -358,6 +389,10 @@ export class FilesService {
 
   async content(ownerId: string, id: string, mode: string, req: Request, res: Response) {
     const row = await this.active(ownerId, id);
+    if (mode === 'icon') {
+      if (!row.iconKey) throw new NotFoundException('Icono no disponible.');
+      return this.stream(res, req, row.iconKey, 'image/webp');
+    }
     if (!row.objectKey) throw new NotFoundException('Archivo no encontrado.');
     if (mode === 'download') return this.stream(res, req, row.objectKey, row.mime, row.name);
     if (mode === 'thumb' && (row.previewKey || row.posterKey)) return this.stream(res, req, (row.posterKey ?? row.previewKey)!, 'image/webp');
