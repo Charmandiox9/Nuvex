@@ -78,7 +78,8 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Test de integración de auditoría.
 
 ### 12. Observabilidad
-- [ ] Logs estructurados con redacción de secretos, IDs de petición y `/health` profundo (DB/S3/Redis).
+- [x] Logs JSON (`common/logging`) con redacción de secretos y `X-Request-Id`; logger de Nest estructurado; worker emite logs JSON.
+- [x] `/health` profundo: comprueba base de datos, Redis y S3 (con timeout) y reporta `status`/`checks`.
 
 ## Orden recomendado
 1. Fase 0.
