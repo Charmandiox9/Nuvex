@@ -57,7 +57,9 @@ Principios para todo el plan (según `AGENTS.md`):
 - [ ] Tope de descargas por enlace (opcional, pendiente).
 
 ### 8. Errores del backend en inglés
-- [ ] Añadir `code` estable a errores clave y mapearlo en el frontend (fallback al `message`).
+- [x] `code` estable en errores clave (auth, archivos, enlaces) vía `AppException`.
+- [x] Frontend localiza por `code` (es/en) con fallback al `message`.
+- [x] Test de integración de códigos. (Algunos errores aún sin `code`; el fallback los cubre.)
 
 ### 9. PWA + arrastrar carpetas del sistema
 - [ ] `manifest`, iconos y service worker mínimo (usar `modern-web-guidance`).

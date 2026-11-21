@@ -1,6 +1,6 @@
 # API de Nuvex
 
-Swagger UI está en `/api/docs`. El documento generado está en `/api/docs-json` y se puede exportar con `pnpm openapi`. Mantén ambos en la red privada. REST vive en `/api/v1`. Los errores HTTP incluyen `statusCode` y `message`. Un conflicto por nombre puede incluir `suggestedName`.
+Swagger UI está en `/api/docs`. El documento generado está en `/api/docs-json` y se puede exportar con `pnpm openapi`. Mantén ambos en la red privada. REST vive en `/api/v1`. Los errores HTTP incluyen `statusCode`, `message` y, en los casos clave, un `code` estable traducible. Un conflicto por nombre puede incluir `suggestedName`.
 
 ## Cuenta, transferencias y enlaces
 
