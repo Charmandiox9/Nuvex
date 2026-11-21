@@ -1,11 +1,11 @@
-import { HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { hash, verify } from '@node-rs/argon2';
 import { Secret, TOTP } from 'otpauth';
 import QRCode from 'qrcode';
 import type { Request, Response } from 'express';
 import { digest, seal, secretHash, token, unseal } from '../common/security';
 import { Database } from '../database/database.service';
-import type { LoginBody } from './auth.dto';
+import type { ChangePasswordBody, CodeBody, DisableBody, LoginBody, PasswordBody } from './auth.dto';
 import { cookieOptions } from './session-cookie';
 
 const sessionCookie = 'nuvex_session';
@@ -130,5 +130,106 @@ export class AuthService {
   async revoke(req: Request, id: string) {
     const current = await this.session(req);
     if (id !== current.tokenHash) await this.db.client.session.deleteMany({ where: { tokenHash: id, ownerId: current.ownerId } });
+  }
+
+  private async currentOwner(req: Request) {
+    return this.db.client.owner.findUniqueOrThrow({ where: { id: (await this.session(req)).ownerId } });
+  }
+
+  private async requirePassword(owner: { id: string; passwordHash: string }, password: string) {
+    if (!(await verify(owner.passwordHash, password))) {
+      throw new UnauthorizedException('La contraseña actual no es correcta.');
+    }
+  }
+
+  async changePassword(req: Request, input: ChangePasswordBody) {
+    const owner = await this.currentOwner(req);
+    await this.limit('account-password', owner.id, 10);
+    await this.requirePassword(owner, input.currentPassword);
+    const passwordHash = await hash(input.newPassword);
+    const current = await this.session(req);
+    await this.db.client.$transaction(async (tx) => {
+      await tx.owner.update({ where: { id: owner.id }, data: { passwordHash } });
+      await tx.session.deleteMany({ where: { ownerId: owner.id, tokenHash: { not: current.tokenHash } } });
+      await tx.audit.create({ data: { ownerId: owner.id, action: 'auth.password.changed' } });
+    });
+  }
+
+  async regenerateRecovery(req: Request, input: PasswordBody) {
+    const owner = await this.currentOwner(req);
+    await this.limit('account-recovery', owner.id, 10);
+    await this.requirePassword(owner, input.currentPassword);
+    const codes = Array.from({ length: 10 }, () => token(10).toUpperCase());
+    await this.db.client.$transaction(async (tx) => {
+      await tx.owner.update({
+        where: { id: owner.id },
+        data: { recoveryHashes: codes.map((code) => secretHash(owner.id, code)) },
+      });
+      await tx.audit.create({ data: { ownerId: owner.id, action: 'auth.recovery.regenerated' } });
+    });
+    return { recoveryCodes: codes };
+  }
+
+  async beginTotpEnroll(req: Request, input: PasswordBody) {
+    const owner = await this.currentOwner(req);
+    await this.limit('account-totp', owner.id, 10);
+    await this.requirePassword(owner, input.currentPassword);
+    const authenticator = new TOTP({ issuer: 'Nuvex', label: owner.username, secret: new Secret({ size: 20 }) });
+    const current = await this.session(req);
+    await this.db.client.session.update({
+      where: { tokenHash: current.tokenHash },
+      data: { enrollment: seal(authenticator.secret.base32) },
+    });
+    return { qr: await QRCode.toDataURL(authenticator.toString()), setupKey: authenticator.secret.base32 };
+  }
+
+  async confirmTotp(req: Request, input: CodeBody) {
+    const current = await this.session(req);
+    if (!current.enrollment) throw new BadRequestException('No hay un enrolamiento pendiente.');
+    await this.limit('account-totp-confirm', current.ownerId, 10);
+    const timestamp = Date.now();
+    const delta = new TOTP({ secret: Secret.fromBase32(unseal(current.enrollment)) })
+      .validate({ token: input.code.trim(), window: 1, timestamp });
+    if (delta === null) throw new UnauthorizedException('Código inválido.');
+    const step = BigInt(Math.floor(timestamp / 30_000) + delta);
+    const codes = Array.from({ length: 10 }, () => token(10).toUpperCase());
+    await this.db.client.$transaction(async (tx) => {
+      await tx.owner.update({
+        where: { id: current.ownerId },
+        data: {
+          totpSecret: current.enrollment, lastTotpStep: step,
+          recoveryHashes: codes.map((code) => secretHash(current.ownerId, code)),
+        },
+      });
+      await tx.session.update({ where: { tokenHash: current.tokenHash }, data: { enrollment: null } });
+      await tx.audit.create({ data: { ownerId: current.ownerId, action: 'auth.totp.enrolled' } });
+    });
+    return { recoveryCodes: codes };
+  }
+
+  async disableTotp(req: Request, input: DisableBody) {
+    const owner = await this.currentOwner(req);
+    await this.limit('account-2fa', owner.id, 10);
+    await this.requirePassword(owner, input.currentPassword);
+    if (!owner.totpSecret) throw new BadRequestException('La verificación en dos pasos no está activa.');
+    const delta = new TOTP({ secret: Secret.fromBase32(unseal(owner.totpSecret)) })
+      .validate({ token: input.code.trim(), window: 1, timestamp: Date.now() });
+    if (delta === null) throw new UnauthorizedException('Código inválido.');
+    await this.db.client.$transaction(async (tx) => {
+      await tx.owner.update({
+        where: { id: owner.id },
+        data: { totpSecret: null, recoveryHashes: [], lastTotpStep: BigInt(0) },
+      });
+      await tx.audit.create({ data: { ownerId: owner.id, action: 'auth.totp.disabled' } });
+    });
+  }
+
+  async revokeAllSessions(req: Request) {
+    const current = await this.session(req);
+    const result = await this.db.client.session.deleteMany({
+      where: { ownerId: current.ownerId, tokenHash: { not: current.tokenHash } },
+    });
+    await this.db.client.audit.create({ data: { ownerId: current.ownerId, action: 'auth.sessions.revoked' } });
+    return { revoked: result.count };
   }
 }

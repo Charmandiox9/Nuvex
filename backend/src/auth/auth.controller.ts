@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req, Res } from '@nestjs/common';
 import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { CodeBody, LoginBody, LoginResponse, VerificationResponse } from './auth.dto';
+import { ChangePasswordBody, CodeBody, DisableBody, LoginBody, LoginResponse, PasswordBody, VerificationResponse } from './auth.dto';
 import { AuthService } from './auth.service';
 
 @ApiTags('Cuenta')
@@ -49,5 +49,35 @@ export class AuthController {
   @Post('logout') @HttpCode(204)
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.auth.logout(req, res);
+  }
+
+  @Post('password') @HttpCode(204)
+  changePassword(@Req() req: Request, @Body() body: ChangePasswordBody) {
+    return this.auth.changePassword(req, body);
+  }
+
+  @Post('recovery/regenerate') @HttpCode(200)
+  regenerate(@Req() req: Request, @Body() body: PasswordBody) {
+    return this.auth.regenerateRecovery(req, body);
+  }
+
+  @Post('totp/enroll') @HttpCode(200)
+  enroll(@Req() req: Request, @Body() body: PasswordBody) {
+    return this.auth.beginTotpEnroll(req, body);
+  }
+
+  @Post('totp/confirm') @HttpCode(200)
+  confirm(@Req() req: Request, @Body() body: CodeBody) {
+    return this.auth.confirmTotp(req, body);
+  }
+
+  @Post('2fa/disable') @HttpCode(204)
+  disable(@Req() req: Request, @Body() body: DisableBody) {
+    return this.auth.disableTotp(req, body);
+  }
+
+  @Post('sessions/revoke-all') @HttpCode(200)
+  revokeAll(@Req() req: Request) {
+    return this.auth.revokeAllSessions(req);
   }
 }
