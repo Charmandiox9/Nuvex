@@ -51,7 +51,10 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Tests de integración (propietario e invitado). Sin migración.
 
 ### 7. Enlaces compartidos
-- [ ] `POST /shares/:id/send` (Resend) y QR del enlace; opcional tope de descargas.
+- [x] QR del enlace en la creación (`qr` data URL).
+- [x] `POST /shares/:id/send` `{ to, code }` con Resend (valida el código; 503 si no está configurado).
+- [x] Tests de integración. Sin migración. (Envío real no probado: requiere Resend configurado.)
+- [ ] Tope de descargas por enlace (opcional, pendiente).
 
 ### 8. Errores del backend en inglés
 - [ ] Añadir `code` estable a errores clave y mapearlo en el frontend (fallback al `message`).
