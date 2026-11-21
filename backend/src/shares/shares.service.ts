@@ -128,6 +128,10 @@ export class SharesService {
     if (row.kind !== 'file') throw new NotFoundException('Archivo no disponible.');
     if (mode === 'download' && !share.allowDownload) throw new ForbiddenException('El propietario deshabilitó las descargas.');
     if (share.allowDownload) return this.files.content(share.ownerId, id, mode, req, res);
+    if (row.mime.startsWith('audio/')) {
+      if (!row.objectKey) throw new NotFoundException('Archivo no disponible.');
+      return this.files.stream(res, req, row.objectKey, row.mime);
+    }
     const mime = row.mime.startsWith('video/') ? 'video/mp4' : 'image/webp';
     return this.files.stream(res, req, 'guest/' + session.id + '/' + id, mime);
   }

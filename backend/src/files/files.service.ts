@@ -362,6 +362,7 @@ export class FilesService {
     if (mode === 'thumb' && (row.previewKey || row.posterKey)) return this.stream(res, req, (row.posterKey ?? row.previewKey)!, 'image/webp');
     if (mode === 'preview' && row.previewKey) return this.stream(res, req, row.previewKey, 'image/webp');
     if (mode === 'preview' && row.videoKey) return this.stream(res, req, row.videoKey, row.videoKey === row.objectKey ? row.mime : 'video/mp4');
+    if (mode === 'preview' && row.mime.startsWith('audio/')) return this.stream(res, req, row.objectKey, row.mime);
     throw new UnsupportedMediaTypeException('La vista previa todavía no está disponible.');
   }
 
