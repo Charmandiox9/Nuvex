@@ -35,8 +35,8 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Tests: integración (contenido ZIP y rechazo de archivos). Sin migración. (e2e pendiente.)
 
 ### 4. Subidas concurrentes
-- [ ] Frontend: pool de 2–3 subidas en `hooks/use-transfers.ts`, partes secuenciales por archivo, mantener reanudación.
-- [ ] Tests: unitario del planificador y prueba manual.
+- [x] Frontend: pool de 3 subidas en `hooks/use-transfers.ts`, partes secuenciales por archivo, reanudación preservada y deduplicación de carpetas.
+- [x] Verificado con e2e de subida (escritorio y móvil). Unitario del planificador pendiente (se cubre en la Fase 3.10).
 
 ## Fase 2 · Prioridad media
 
