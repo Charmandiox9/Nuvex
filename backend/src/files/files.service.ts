@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
 import type { Readable } from 'node:stream';
+import archiver from 'archiver';
 import { BadRequestException, ConflictException, HttpException, Injectable, NotFoundException, UnsupportedMediaTypeException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { Entry, Prisma } from '../../prisma/generated/client';
@@ -13,6 +14,10 @@ import type { ChangeBody, FolderBody, UploadBody } from './files.dto';
 
 type Db = Database['client'] | Prisma.TransactionClient;
 type Destination = { ownerId: string; parentId: string; name: string };
+const zipSegment = (name: string) => {
+  const cleaned = Array.from(name).filter((char) => char !== '/' && char !== '\\' && char.charCodeAt(0) >= 32).join('').trim();
+  return cleaned && !/^\.+$/.test(cleaned) ? cleaned : 'archivo';
+};
 
 @Injectable()
 export class FilesService {
@@ -340,5 +345,46 @@ export class FilesService {
     if (mode === 'preview' && row.previewKey) return this.stream(res, req, row.previewKey, 'image/webp');
     if (mode === 'preview' && row.videoKey) return this.stream(res, req, row.videoKey, row.videoKey === row.objectKey ? row.mime : 'video/mp4');
     throw new UnsupportedMediaTypeException('La vista previa todavía no está disponible.');
+  }
+
+  async archive(ownerId: string, id: string, res: Response) {
+    const root = await this.active(ownerId, id);
+    if (root.kind !== 'folder') throw new BadRequestException('Solo se pueden descargar carpetas.');
+    const maxEntries = 100_000;
+    const nodes: { row: Entry; path: string }[] = [];
+    const queue: { row: Entry; path: string }[] = [{ row: root, path: zipSegment(root.name) }];
+    while (queue.length) {
+      const node = queue.shift()!;
+      nodes.push(node);
+      if (node.row.kind !== 'folder') continue;
+      if (nodes.length > maxEntries) throw new HttpException('La carpeta es demasiado grande para descargarla.', 413);
+      const children = await this.db.client.entry.findMany({
+        where: { ownerId, parentId: node.row.id, trashedAt: null }, orderBy: { name: 'asc' },
+      });
+      for (const child of children) queue.push({ row: child, path: node.path + '/' + zipSegment(child.name) });
+    }
+    const base = zipSegment(root.name);
+    res.attachment(base + '.zip');
+    res.set({ 'Content-Type': 'application/zip', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (error) => { if (!res.destroyed) res.destroy(error); });
+    res.on('close', () => { if (!res.writableEnded) archive.destroy(); });
+    archive.pipe(res);
+    for (const { row, path } of nodes) {
+      if (res.destroyed) return;
+      if (row.kind !== 'file' || !row.objectKey) continue;
+      const object = await this.storage.read(row.objectKey);
+      if (!object.Body) continue;
+      const body = object.Body as Readable;
+      await new Promise<void>((resolve) => {
+        let done = false;
+        const finish = () => { if (!done) { done = true; resolve(); } };
+        body.once('end', finish);
+        body.once('error', finish);
+        body.once('close', finish);
+        archive.append(body, { name: path });
+      });
+    }
+    if (!res.destroyed) await archive.finalize();
   }
 }

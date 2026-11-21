@@ -66,6 +66,11 @@ export class FileController {
     await this.files.content(await this.owner(req), id, mode, req, res);
   }
 
+  @Get('entries/:id/archive')
+  async archive(@Req() req: Request, @Res() res: Response, @Param('id') id: string) {
+    await this.files.archive(await this.owner(req), id, res);
+  }
+
   @Post('uploads')
   @ApiOperation({ summary: 'Reservar una subida por partes.' })
   @ApiCreatedResponse({ type: UploadCreated })
