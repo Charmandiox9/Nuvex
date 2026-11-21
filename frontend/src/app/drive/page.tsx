@@ -11,6 +11,7 @@ import {
 import { sileo } from 'sileo';
 import { ApiError, api, content, gql } from '@/lib/api';
 import { formatBytes, message } from '@/lib/format';
+import { collectDroppedFiles } from '@/lib/dropped-files';
 import { destinationQuery, driveQuery, previewQuery } from '@/graphql/entries';
 import type { Entry, Page } from '@/types/entry';
 import { Brand } from '@/components/brand';
@@ -284,8 +285,9 @@ export default function Drive() {
     if (!event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
     setFileDragActive(false);
-    const files = Array.from(event.dataTransfer.files);
-    if (files.length && view !== 'trash') { navigate('transfers'); void transfers.add(files, parentId); }
+    void collectDroppedFiles(event.dataTransfer).then((files) => {
+      if (files.length && view !== 'trash') { navigate('transfers'); void transfers.add(files, parentId); }
+    });
   }
 
   if (!me.data) return <main className="session-check"><Brand /><p role={me.error ? 'alert' : 'status'}>{me.error ? message(me.error) : t('drive.opening')}</p></main>;
