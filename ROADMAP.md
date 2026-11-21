@@ -69,8 +69,8 @@ Principios para todo el plan (según `AGENTS.md`):
 ## Fase 3 · Calidad e infraestructura
 
 ### 10. Pruebas unitarias
-- [ ] Backend: `common/security`, `imports/import-urls`, `file-entry`.
-- [ ] Frontend: Vitest para `lib/format`, i18n `t`, planificador de subidas; añadir al CI.
+- [x] Backend (Jest): `common/security`, `imports/import-urls`, `files/file-entry`.
+- [x] Frontend (Vitest): `lib/format`, i18n (`interpolate`) y `lib/pool`. El script raíz `test` ejecuta ambos y el CI lo usa.
 
 ### 11. Vista de auditoría
 - [ ] `GET /audit` paginado (owner) y panel en Ajustes.
