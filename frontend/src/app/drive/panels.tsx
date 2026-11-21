@@ -11,6 +11,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageToggle } from '@/components/language-toggle';
 import type { Locale } from '@/i18n/catalogs';
 import { Security } from './security';
+import { Audit } from './audit';
 
 type Link = { id: string; entryId: string; expiresAt: string; revokedAt?: string; remaining: number; maxUses: number; entryName?: string; lastRedeemedAt?: string };
 type Session = { id: string; current: boolean; createdAt: string; expiresAt: string };
@@ -70,6 +71,7 @@ export function Settings() {
       </article>)}
     </section>
     <Security />
+    <Audit />
     <section className="panel">
       <h2><KeyRound size={20} /> {t('panel.deepseek')}</h2>
       <p>{deepseek.data?.configured ? t('panel.deepseekOn') : t('panel.deepseekOff')}</p>

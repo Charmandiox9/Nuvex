@@ -257,6 +257,18 @@ export const messages = {
     'error.share.expired': 'Tu acceso ha vencido o se ha revocado.',
     'error.share.downloadsDisabled': 'El propietario deshabilitó las descargas.',
     'error.share.codeMismatch': 'El código no corresponde al enlace.',
+    // Auditoría
+    'audit.title': 'Actividad reciente',
+    'audit.empty': 'Sin actividad registrada.',
+    'audit.loadMore': 'Cargar más',
+    'audit.action.verified': 'Inicio de sesión verificado',
+    'audit.action.recovery': 'Acceso con código de recuperación',
+    'audit.action.password': 'Contraseña cambiada',
+    'audit.action.recoveryRegenerated': 'Códigos de recuperación regenerados',
+    'audit.action.totpEnrolled': 'Autenticador configurado',
+    'audit.action.totpDisabled': 'Verificación en dos pasos desactivada',
+    'audit.action.sessionsRevoked': 'Sesiones cerradas',
+    'audit.action.redeemed': 'Enlace canjeado',
   },
   en: {
     // Login
@@ -514,6 +526,18 @@ export const messages = {
     'error.share.expired': 'Your access has expired or been revoked.',
     'error.share.downloadsDisabled': 'The owner disabled downloads.',
     'error.share.codeMismatch': 'The code does not match the link.',
+    // Audit
+    'audit.title': 'Recent activity',
+    'audit.empty': 'No recorded activity.',
+    'audit.loadMore': 'Load more',
+    'audit.action.verified': 'Verified sign-in',
+    'audit.action.recovery': 'Recovery code sign-in',
+    'audit.action.password': 'Password changed',
+    'audit.action.recoveryRegenerated': 'Recovery codes regenerated',
+    'audit.action.totpEnrolled': 'Authenticator configured',
+    'audit.action.totpDisabled': 'Two-step verification disabled',
+    'audit.action.sessionsRevoked': 'Sessions signed out',
+    'audit.action.redeemed': 'Link redeemed',
   },
 } as const;
 
