@@ -88,7 +88,7 @@ export function Security() {
 
     <section className="panel">
       <h2><KeyRound size={20} /> {t('security.changePassword')}</h2>
-      <form className="stack" onSubmit={changePassword}>
+      <form className="stack security-form" onSubmit={changePassword}>
         <label htmlFor="pw-current">{t('security.currentPassword')}</label>
         <input id="pw-current" type="password" value={current} onChange={(event) => setCurrent(event.target.value)} autoComplete="current-password" minLength={1} maxLength={256} required />
         <label htmlFor="pw-next">{t('security.newPassword')}</label>
@@ -111,13 +111,13 @@ export function Security() {
       {enroll && <div className="stack">
         <p>{t('security.scanQr')}</p>
         <div className="setup"><img src={enroll.qr} width={128} height={128} alt={t('security.qrAlt')} /><span>{t('security.manualKey')} <code>{enroll.setupKey}</code></span></div>
-        <form className="stack" onSubmit={confirmEnroll}>
+        <form className="stack security-form" onSubmit={confirmEnroll}>
           <label htmlFor="enroll-code">{t('security.code')}</label>
           <input id="enroll-code" inputMode="numeric" autoComplete="one-time-code" minLength={6} maxLength={6} value={enrollCode} onChange={(event) => setEnrollCode(event.target.value)} required />
           <button className="primary" disabled={busy}>{t('security.confirmCode')}</button>
         </form>
       </div>}
-      <form className="stack" onSubmit={disable}>
+      <form className="stack security-form" onSubmit={disable}>
         <p>{t('security.disableHint')}</p>
         <label htmlFor="disable-code">{t('security.code')}</label>
         <input id="disable-code" inputMode="numeric" autoComplete="one-time-code" minLength={6} maxLength={6} value={disableCode} onChange={(event) => setDisableCode(event.target.value)} />

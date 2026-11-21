@@ -87,6 +87,7 @@ Definidos con `light-dark(claro, oscuro)` en `:root` (`globals.css`). Usa siempr
 - **Drive**: barra lateral de `236px` + área de trabajo. Por debajo de `850px` la barra colapsa a `67px` solo-iconos.
 - Breakpoints: `850px` y `530px`. En móvil (`530px`) la barra superior apila, la búsqueda ocupa el ancho y las tarjetas de candidatos pasan a una columna.
 - Usa `clamp()` para tamaños fluidos; no añadas breakpoints nuevos si un `clamp()` resuelve el caso.
+- **Gutters y densidad**: `.workspace-body` comparte el mismo padding horizontal que la barra superior, así el título y el breadcrumb quedan alineados. Las vistas de secciones (Ajustes, Enlaces, Importaciones, Transferencias) usan `.panel-column` (máx. ~880 px) y `.settings-grid` para opciones compactas; evita paneles a todo el ancho y formularios demasiado anchos (`.security-form`, máx. 460 px).
 
 ## Accesibilidad
 

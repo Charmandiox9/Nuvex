@@ -54,14 +54,16 @@ export function Settings() {
   }
   return <>
     {error && <p className="error" role="alert">{error}</p>}
-    <section className="panel">
-      <h2><Palette size={20} /> {t('panel.appearance')}</h2>
-      <ThemeToggle />
-    </section>
-    <section className="panel">
-      <h2><Languages size={20} /> {t('panel.language')}</h2>
-      <LanguageToggle />
-    </section>
+    <div className="settings-grid">
+      <section className="panel">
+        <h2><Palette size={20} /> {t('panel.appearance')}</h2>
+        <ThemeToggle />
+      </section>
+      <section className="panel">
+        <h2><Languages size={20} /> {t('panel.language')}</h2>
+        <LanguageToggle />
+      </section>
+    </div>
     <section className="panel">
       <h2><Monitor size={20} /> {t('panel.sessions')}</h2>
       {sessions.error && <p className="error">{message(sessions.error)}</p>}
