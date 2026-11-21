@@ -30,9 +30,9 @@ Principios para todo el plan (según `AGENTS.md`):
 - [ ] Tests: e2e del visor (requiere el worker en el harness para procesar medios). Sin cambios de backend.
 
 ### 3. Descarga de carpeta (ZIP)
-- [ ] Backend: `GET /entries/:id/archive` (streaming, exclusión de papelera, límites, solo `ownerId`).
-- [ ] Frontend: acción «Descargar carpeta».
-- [ ] Tests: integración del contenido del ZIP y e2e. Sin migración.
+- [x] Backend: `GET /entries/:id/archive` (streaming, exclusión de papelera, límite de entradas, solo `ownerId`).
+- [x] Frontend: acción «Descargar carpeta».
+- [x] Tests: integración (contenido ZIP y rechazo de archivos). Sin migración. (e2e pendiente.)
 
 ### 4. Subidas concurrentes
 - [ ] Frontend: pool de 2–3 subidas en `hooks/use-transfers.ts`, partes secuenciales por archivo, mantener reanudación.
