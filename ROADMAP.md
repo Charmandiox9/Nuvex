@@ -46,8 +46,9 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Tests de integración de filtros. Sin migración.
 
 ### 6. Soporte de audio
-- [ ] Backend: servir `audio/*` en `mode=preview` inline (contenido propio e invitado).
-- [ ] Frontend: reproductor `<audio>` en el visor.
+- [x] Backend: `audio/*` se sirve inline en `mode=preview` (propietario e invitado).
+- [x] Frontend: reproductor `<audio>` en el visor e icono de audio.
+- [x] Tests de integración (propietario e invitado). Sin migración.
 
 ### 7. Enlaces compartidos
 - [ ] `POST /shares/:id/send` (Resend) y QR del enlace; opcional tope de descargas.
