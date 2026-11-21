@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { animate } from 'animejs';
@@ -49,6 +49,9 @@ export default function Drive() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState('name');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('');
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [selected, setSelected] = useState<string[]>([]);
   const [preview, setPreview] = useState<Entry>();
@@ -67,6 +70,21 @@ export default function Drive() {
   const dialog = useRef<HTMLDialogElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const folderPicker = useRef<HTMLInputElement>(null);
+  const filters = useMemo<{ kind?: string; mimePrefix?: string; from?: string; minSize?: string; maxSize?: string; active: boolean }>(() => {
+    const kind = typeFilter === 'folder' ? 'folder' : typeFilter === 'file' ? 'file' : undefined;
+    const mimePrefix = typeFilter === 'image' ? 'image/' : typeFilter === 'video' ? 'video/' : typeFilter === 'audio' ? 'audio/' : undefined;
+    const days = dateFilter === 'week' ? 7 : dateFilter === 'month' ? 30 : dateFilter === 'year' ? 365 : 0;
+    let from: string | undefined;
+    if (days) {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - days);
+      from = date.toISOString();
+    }
+    const minSize = sizeFilter === 'medium' ? String(1024 ** 2) : sizeFilter === 'large' ? String(100 * 1024 ** 2) : undefined;
+    const maxSize = sizeFilter === 'small' ? String(1024 ** 2 - 1) : sizeFilter === 'medium' ? String(100 * 1024 ** 2) : undefined;
+    return { kind, mimePrefix, from, minSize, maxSize, active: Boolean(typeFilter || dateFilter || sizeFilter) };
+  }, [typeFilter, dateFilter, sizeFilter]);
   const parentId = path.at(-1)?.id ?? '';
   const folderName = path.at(-1)?.name ?? t('drive.section.files');
   const showListing = view === 'files' || view === 'gallery' || view === 'trash';
@@ -75,11 +93,11 @@ export default function Drive() {
     if (me.error instanceof ApiError && me.error.status === 401) router.replace('/');
   }, [me.error, router]);
   const entries = useInfiniteQuery({
-    queryKey: ['entries', view, parentId, filter, sort],
+    queryKey: ['entries', view, parentId, filter, sort, typeFilter, dateFilter, sizeFilter],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => gql<{ entries: Page }>(
       driveQuery,
-      { view, parentId, search: filter, cursor: pageParam, sort },
+      { view, parentId, search: filter, cursor: pageParam, sort, kind: filters.kind, mimePrefix: filters.mimePrefix, from: filters.from, minSize: filters.minSize, maxSize: filters.maxSize },
     ).then((data) => data.entries),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: Boolean(me.data && showListing),
@@ -141,7 +159,7 @@ export default function Drive() {
     setOp({ name, rows });
   }
 
-  function navigate(next: View) { setView(next); setSearch(''); setFilter(''); setSelected([]); }
+  function navigate(next: View) { setView(next); setSearch(''); setFilter(''); setSelected([]); setTypeFilter(''); setDateFilter(''); setSizeFilter(''); }
   function openRow(row: Entry) {
     if (view === 'trash') return;
     if (row.kind === 'folder') {
@@ -309,6 +327,27 @@ export default function Drive() {
           <div className="listing-tools">
             <span>{active.length ? t(active.length === 1 ? 'drive.selectedOne' : 'drive.selectedOther', { count: active.length }) : filter ? t('drive.resultsFor', { query: filter }) : t('drive.content')}</span>
             <div className="actions">
+              <select aria-label={t('drive.filterTypeAria')} value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value); setSelected([]); }}>
+                <option value="">{t('drive.filterTypeAll')}</option>
+                <option value="folder">{t('drive.folder')}</option>
+                <option value="file">{t('drive.filterFile')}</option>
+                <option value="image">{t('drive.filterImage')}</option>
+                <option value="video">{t('drive.filterVideo')}</option>
+                <option value="audio">{t('drive.filterAudio')}</option>
+              </select>
+              <select aria-label={t('drive.filterDateAria')} value={dateFilter} onChange={(event) => { setDateFilter(event.target.value); setSelected([]); }}>
+                <option value="">{t('drive.filterDateAny')}</option>
+                <option value="week">{t('drive.filterDateWeek')}</option>
+                <option value="month">{t('drive.filterDateMonth')}</option>
+                <option value="year">{t('drive.filterDateYear')}</option>
+              </select>
+              <select aria-label={t('drive.filterSizeAria')} value={sizeFilter} onChange={(event) => { setSizeFilter(event.target.value); setSelected([]); }}>
+                <option value="">{t('drive.filterSizeAny')}</option>
+                <option value="small">{t('drive.filterSizeSmall')}</option>
+                <option value="medium">{t('drive.filterSizeMedium')}</option>
+                <option value="large">{t('drive.filterSizeLarge')}</option>
+              </select>
+              {filters.active && <button type="button" className="text-button" onClick={() => { setTypeFilter(''); setDateFilter(''); setSizeFilter(''); }}>{t('drive.filterClear')}</button>}
               <select aria-label={t('drive.sortAria')} value={sort} onChange={(event) => setSort(event.target.value)}>
                 <option value="name">{t('drive.sortName')}</option><option value="recent">{t('drive.sortRecent')}</option><option value="size">{t('drive.sortSize')}</option>
               </select>
