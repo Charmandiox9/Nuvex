@@ -72,6 +72,7 @@ Definidos con `light-dark(claro, oscuro)` en `:root` (`globals.css`). Usa siempr
 - **Listado** (`.entries`): filas con fondo `--sidebar`, borde `--line`; en vista lista las filas comparten un contenedor con radio `12px` y separador `--line`. En cuadrícula, `grid-template-columns: repeat(auto-fill, minmax(154px, 1fr))`.
 - **Estado vacío** (`.empty`): borde discontinuo `--line`, radio `12px`, icono en caja `#283924` con `--accent`.
 - **Progreso** (`<progress>`): altura `4px`, barra `--line`, valor `--accent`.
+- **Visor (lightbox)** (`.lightbox`): overlay oscuro fijo con navegación ←/→, `Esc`, swipe, zoom y descarga. Es deliberadamente oscuro en ambos temas, como el panel de arte; el estado de procesado se muestra sobre el medio.
 
 ## Movimiento
 

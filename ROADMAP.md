@@ -24,9 +24,10 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Tests: integración de endpoints (cambio de contraseña, códigos, TOTP y sesiones). Sin migración. (e2e de navegador pendiente.)
 
 ### 2. Visor de medios tipo lightbox — impacto visual
-- [ ] Frontend: `components/media-viewer.tsx` (lista + índice; ←/→, `Esc`, swipe, zoom, foco atrapado).
-- [ ] Integrar en galería y preview del drive; paginar al llegar al final.
-- [ ] Tests: e2e (abrir, avanzar, cerrar; teclado). Sin cambios de backend.
+- [x] Frontend: `components/media-viewer.tsx` (lista + índice; ←/→, `Esc`, swipe, zoom).
+- [x] Integrar en galería y en el explorador (navegación dentro de los medios cargados).
+- [ ] Paginar el visor al llegar al final (pendiente).
+- [ ] Tests: e2e de navegador (abrir, avanzar, cerrar; teclado). Sin cambios de backend.
 
 ### 3. Descarga de carpeta (ZIP)
 - [ ] Backend: `GET /entries/:id/archive` (streaming, exclusión de papelera, límites, solo `ownerId`).
