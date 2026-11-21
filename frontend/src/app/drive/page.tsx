@@ -6,7 +6,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { animate } from 'animejs';
 import {
   ArrowLeft, ArrowUpFromLine, ChevronRight, Download, FileJson, Folder, FolderPlus, Grid2X2,
-  HardDrive, Images, Link2, List, LogOut, Search, Settings as SettingsIcon, Trash2, X,
+  HardDrive, Images, Link2, List, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings as SettingsIcon, Trash2, X,
 } from 'lucide-react';
 import { sileo } from 'sileo';
 import { ApiError, api, content, gql } from '@/lib/api';
@@ -47,6 +47,13 @@ export default function Drive() {
   const router = useRouter();
   const cache = useQueryClient();
   const { t, locale } = useI18n();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => { setSidebarOpen(localStorage.getItem('nuvex-sidebar') !== 'closed'); }, []);
+  function toggleSidebar() {
+    const next = !sidebarOpen;
+    setSidebarOpen(next);
+    localStorage.setItem('nuvex-sidebar', next ? 'open' : 'closed');
+  }
   const [view, setView] = useState<View>('files');
   const [path, setPath] = useState<Entry[]>([]);
   const [search, setSearch] = useState('');
@@ -319,7 +326,7 @@ export default function Drive() {
 
   if (!me.data) return <main className="session-check"><Brand /><p role={me.error ? 'alert' : 'status'}>{me.error ? message(me.error) : t('drive.opening')}</p></main>;
 
-  return <main className="drive">
+  return <main className={'drive' + (sidebarOpen ? '' : ' sidebar-collapsed')}>
     <aside className="sidebar">
       <button className="brand-button" onClick={() => { setPath([]); navigate('files'); }}><Brand /></button>
       <nav aria-label="Drive">
@@ -342,8 +349,15 @@ export default function Drive() {
     <section className="workspace" onDragOver={workspaceDragOver} onDragLeave={workspaceDragLeave} onDrop={workspaceDrop}>
       {fileDragActive && view !== 'trash' && <div className="drop-overlay" aria-hidden="true"><ArrowUpFromLine size={26} /><span>{t('drive.dropToUpload')}</span></div>}
       <header className="topbar">
-        <div className="breadcrumbs"><span>Drive</span><ChevronRight size={14} /><span>{t(sections.find((item) => item.id === view)?.key ?? '')}</span></div>
-        {showListing && <label className="search"><Search size={17} /><input type="search" aria-label={t('drive.searchAria')} placeholder={t('drive.searchPlaceholder')} value={search} onChange={(event) => { setSearch(event.target.value); setSelected([]); }} /></label>}
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <button className="icon-button" aria-label={t('drive.toggleSidebar')} title={t('drive.toggleSidebar')} onClick={toggleSidebar}>
+              {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            </button>
+            <div className="breadcrumbs"><span>Drive</span><ChevronRight size={14} /><span>{t(sections.find((item) => item.id === view)?.key ?? '')}</span></div>
+          </div>
+          {showListing && <label className="search"><Search size={17} /><input type="search" aria-label={t('drive.searchAria')} placeholder={t('drive.searchPlaceholder')} value={search} onChange={(event) => { setSearch(event.target.value); setSelected([]); }} /></label>}
+        </div>
       </header>
       <div className="workspace-body">
         <header className="workspace-heading">
