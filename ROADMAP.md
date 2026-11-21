@@ -10,7 +10,7 @@ Principios para todo el plan (según `AGENTS.md`):
 ## Fase 0 · Preparación
 - [x] Verificar línea base: `pnpm dev:infra`, `pnpm migrate`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
 - [x] Establecer commits base por área (`chore`, `feat(backend)`, `feat(web)`, `docs`). A partir de aquí, un commit por feature.
-- [ ] Crear rama por entrega (`feat/...`) al iniciar la Fase 1.
+- [x] Crear rama por entrega (`feat/...`) al iniciar la Fase 1.
 
 ## Fase 1 · Prioridad alta
 
@@ -54,7 +54,7 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] QR del enlace en la creación (`qr` data URL).
 - [x] `POST /shares/:id/send` `{ to, code }` con Resend (valida el código; 503 si no está configurado).
 - [x] Tests de integración. Sin migración. (Envío real no probado: requiere Resend configurado.)
-- [ ] Tope de descargas por enlace (opcional, pendiente).
+- [x] Tope de descargas por enlace: `maxDownloads` con contador y 403 al agotarse (migración incluida).
 
 ### 8. Errores del backend en inglés
 - [x] `code` estable en errores clave (auth, archivos, enlaces) vía `AppException`.
