@@ -1,6 +1,6 @@
 import {
   AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CopyObjectCommand, CreateMultipartUploadCommand,
-  DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, ListPartsCommand, PutObjectCommand, S3Client, UploadPartCommand,
+  DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListBucketsCommand, ListObjectsV2Command, ListPartsCommand, PutObjectCommand, S3Client, UploadPartCommand,
 } from '@aws-sdk/client-s3';
 import type { Readable } from 'node:stream';
 
@@ -58,6 +58,10 @@ export class Storage {
 
   head(key: string) {
     return this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async ping() {
+    await this.client.send(new ListBucketsCommand({}));
   }
 
   read(key: string, range?: string) {

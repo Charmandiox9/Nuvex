@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { Worker, type Job } from 'bullmq';
+import { log } from '../common/logging';
 import { createDatabase } from '../../prisma/client';
 import { openQueue, queueName, redisOptions } from '../queue/queue';
 import { Storage } from '../storage/storage';
@@ -29,11 +30,11 @@ async function processJob(job: Job<{ id: string; guestId?: string }>) {
 
 async function run() {
   const worker = new Worker(queueName, processJob, { connection: { ...redisOptions(), maxRetriesPerRequest: null }, concurrency: 1 });
-  worker.on('error', (error) => console.error('Error de conexión del worker:', error.message));
+  worker.on('error', (error) => log('error', 'worker connection error', { error: error.message }));
   worker.on('failed', (job, error) => {
     if (!job) return;
-    console.error('Trabajo fallido:', job.name, job.id);
-    if (process.env.NUVEX_INTEGRATION === '1') console.error(error.message);
+    log('warn', 'job failed', { name: job.name, id: job.id });
+    if (process.env.NUVEX_INTEGRATION === '1') log('error', 'job error', { error: error.message });
     if (job.attemptsMade < (job.opts.attempts ?? 1)) return;
     const id = job.data.id;
     const record = job.name === 'import'
@@ -41,7 +42,7 @@ async function run() {
       : ['preview', 'transcode'].includes(job.name)
         ? database.entry.updateMany({ where: { id }, data: { mediaStatus: 'failed' } })
         : database.audit.create({ data: { action: 'worker.failed.' + job.name, target: id || undefined } });
-    void record.catch(() => console.error('No se pudo registrar el fallo del trabajo.'));
+    void record.catch(() => log('error', 'job failure not recorded'));
   });
   await queue.upsertJobScheduler('maintenance', { every: 60_000 }, { name: 'maintenance', data: { id: '' } });
   if (process.env.RESEND_API_KEY) {
@@ -56,4 +57,4 @@ async function run() {
   process.on('SIGINT', () => { void stop(); });
 }
 
-run().catch((error: unknown) => { console.error(error); process.exit(1); });
+run().catch((error: unknown) => { log('error', 'worker crashed', { error: error instanceof Error ? error.message : String(error) }); process.exit(1); });
