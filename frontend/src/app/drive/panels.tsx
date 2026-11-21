@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n/provider';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageToggle } from '@/components/language-toggle';
 import type { Locale } from '@/i18n/catalogs';
+import { Security } from './security';
 
 type Link = { id: string; entryId: string; expiresAt: string; revokedAt?: string; remaining: number; maxUses: number; entryName?: string; lastRedeemedAt?: string };
 type Session = { id: string; current: boolean; createdAt: string; expiresAt: string };
@@ -68,6 +69,7 @@ export function Settings() {
         {!session.current && <button className="secondary" onClick={() => action('/auth/sessions/' + session.id, 'DELETE')}>{t('panel.closeSession')}</button>}
       </article>)}
     </section>
+    <Security />
     <section className="panel">
       <h2><KeyRound size={20} /> {t('panel.deepseek')}</h2>
       <p>{deepseek.data?.configured ? t('panel.deepseekOn') : t('panel.deepseekOff')}</p>
