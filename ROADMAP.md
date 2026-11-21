@@ -78,7 +78,7 @@ Principios para todo el plan (según `AGENTS.md`):
 - [x] Test de integración de auditoría.
 
 ### 12. Observabilidad
-- [x] Logs JSON (`common/logging`) con redacción de secretos y `X-Request-Id`; logger de Nest estructurado; worker emite logs JSON.
+- [x] Logs: legibles por defecto; JSON estructurado con redacción de secretos y `X-Request-Id` si `NUVEX_LOG_JSON=1`.
 - [x] `/health` profundo: comprueba base de datos, Redis y S3 (con timeout) y reporta `status`/`checks`.
 
 ## Orden recomendado
