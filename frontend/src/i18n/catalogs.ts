@@ -115,6 +115,8 @@ export const messages = {
     'drive.shareHours': 'Vencimiento en horas',
     'drive.shareUses': 'Canjes permitidos',
     'drive.allowDownloads': 'Permitir descargas',
+    'drive.shareMaxDownloads': 'Límite de descargas (opcional)',
+    'drive.shareMaxDownloadsPlaceholder': 'Sin límite',
     'drive.purgeConfirmOne': 'Se eliminará permanentemente {count} elemento y el contenido de sus carpetas.',
     'drive.purgeConfirmOther': 'Se eliminarán permanentemente {count} elementos y el contenido de sus carpetas.',
     'drive.overwrite': 'Permitir reemplazar el archivo existente',
@@ -257,6 +259,7 @@ export const messages = {
     'error.share.expired': 'Tu acceso ha vencido o se ha revocado.',
     'error.share.downloadsDisabled': 'El propietario deshabilitó las descargas.',
     'error.share.codeMismatch': 'El código no corresponde al enlace.',
+    'error.share.downloadsExhausted': 'Se alcanzó el límite de descargas de este enlace.',
     // Auditoría
     'audit.title': 'Actividad reciente',
     'audit.empty': 'Sin actividad registrada.',
@@ -384,6 +387,8 @@ export const messages = {
     'drive.shareHours': 'Expires in hours',
     'drive.shareUses': 'Allowed redemptions',
     'drive.allowDownloads': 'Allow downloads',
+    'drive.shareMaxDownloads': 'Download limit (optional)',
+    'drive.shareMaxDownloadsPlaceholder': 'No limit',
     'drive.purgeConfirmOne': '{count} item and the contents of its folders will be permanently deleted.',
     'drive.purgeConfirmOther': '{count} items and the contents of their folders will be permanently deleted.',
     'drive.overwrite': 'Allow replacing the existing file',
@@ -526,6 +531,7 @@ export const messages = {
     'error.share.expired': 'Your access has expired or been revoked.',
     'error.share.downloadsDisabled': 'The owner disabled downloads.',
     'error.share.codeMismatch': 'The code does not match the link.',
+    'error.share.downloadsExhausted': 'This link reached its download limit.',
     // Audit
     'audit.title': 'Recent activity',
     'audit.empty': 'No recorded activity.',

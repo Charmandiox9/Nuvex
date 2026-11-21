@@ -190,6 +190,7 @@ export default function Drive() {
         setShare(await api<{ id: string; code: string; path: string; qr?: string }>('/shares', 'POST', {
           entryId: op.rows[0].id, hours: Number(input.get('hours')), uses: Number(input.get('uses')),
           allowDownload: input.get('downloads') === 'on',
+          maxDownloads: input.get('maxDownloads') ? Number(input.get('maxDownloads')) : undefined,
         }));
         void cache.invalidateQueries({ queryKey: ['links'] });
         return;
@@ -446,6 +447,8 @@ export default function Drive() {
               <label htmlFor="share-hours">{t('drive.shareHours')}</label><input name="hours" id="share-hours" type="number" min="1" max="720" defaultValue="24" required />
               <label htmlFor="share-uses">{t('drive.shareUses')}</label><input name="uses" id="share-uses" type="number" min="1" max="100" defaultValue="1" required />
               <label><input type="checkbox" name="downloads" /> {t('drive.allowDownloads')}</label>
+              <label htmlFor="share-max-downloads">{t('drive.shareMaxDownloads')}</label>
+              <input name="maxDownloads" id="share-max-downloads" type="number" min="1" max="10000" placeholder={t('drive.shareMaxDownloadsPlaceholder')} />
             </>}
             {op.name === 'purge' && <p>{t(op.rows.length === 1 ? 'drive.purgeConfirmOne' : 'drive.purgeConfirmOther', { count: op.rows.length })}</p>}
             {!!suggested && ['move', 'rename', 'restore'].includes(op.name) && <label><input type="checkbox" name="overwrite" /> {t('drive.overwrite')}</label>}
