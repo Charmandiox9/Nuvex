@@ -11,7 +11,7 @@ export class AuditController {
   constructor(private readonly auth: AuthService, private readonly audit: AuditService) {}
 
   @Get()
-  async list(@Req() req: Request, @Query('cursor') cursor?: string) {
-    return this.audit.list((await this.auth.session(req)).ownerId, cursor);
+  async list(@Req() req: Request, @Query('cursor') cursor?: string, @Query('limit') limit?: string) {
+    return this.audit.list((await this.auth.session(req)).ownerId, cursor, Number(limit) || undefined);
   }
 }

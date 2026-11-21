@@ -81,16 +81,20 @@ export class FilesService {
     throw new AppException('files.conflict', 'Ya existe un elemento con ese nombre.', 409, { suggestedName });
   }
 
-  async list(ownerId: string, parentId: string, search: string, view: string, cursor?: string, sort = 'name', filters: ListFilters = {}) {
+  async list(ownerId: string, parentId: string, search: string, view: string, cursor?: string, sort = 'name', filters: ListFilters = {}, limit = 100) {
+    const take = Math.min(Math.max(Math.trunc(Number.isFinite(limit) ? limit : 100), 1), 100);
     if (view === 'files') await this.folder(ownerId, parentId);
     const query = search.trim().slice(0, 200);
     const hasFilters = Boolean(filters.kind || filters.mimePrefix
       || filters.minSize !== undefined || filters.maxSize !== undefined || filters.from || filters.to);
     const global = view === 'gallery' || (view === 'files' && Boolean(query || hasFilters));
     const sortBy: Prisma.EntryOrderByWithRelationInput = sort === 'recent' ? { updatedAt: 'desc' } : sort === 'size' ? { size: 'desc' } : { name: 'asc' };
+    // "folder" ordena después de "file" en texto: descendente deja las carpetas primero.
+    const foldersFirst: Prisma.EntryOrderByWithRelationInput = { kind: 'desc' };
     const rows = await this.db.client.entry.findMany({
       where: {
         ownerId, trashedAt: view === 'trash' ? { not: null } : null,
+        ...(view === 'trash' ? { purging: false } : {}),
         ...(view === 'gallery' ? { mediaStatus: { not: 'none' } } : {}),
         ...(view === 'files' && !global ? { parentId } : {}),
         ...(query ? { name: { contains: query, mode: 'insensitive' } } : {}),
@@ -109,16 +113,16 @@ export class FilesService {
           },
         } : {}),
       },
-      orderBy: [sortBy, { id: 'asc' }], take: 101, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      orderBy: [foldersFirst, sortBy, { id: 'asc' }], take: take + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
-    const page = rows.slice(0, 100);
+    const page = rows.slice(0, take);
     const visible = view !== 'trash' && (query || hasFilters || view === 'gallery')
       ? (await Promise.all(page.map(async (row) => {
         try { return await this.active(ownerId, row.id); }
         catch (error) { if (error instanceof NotFoundException) return null; throw error; }
       }))).filter((row): row is Entry => row !== null)
       : page;
-    return { items: visible.map(serializeEntry), nextCursor: rows.length > 100 ? page.at(-1)?.id : undefined };
+    return { items: visible.map(serializeEntry), nextCursor: rows.length > take ? page.at(-1)?.id : undefined };
   }
 
   async folderCreate(ownerId: string, body: FolderBody, reuse = false) {

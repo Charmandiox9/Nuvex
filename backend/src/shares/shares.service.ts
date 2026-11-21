@@ -131,9 +131,11 @@ export class SharesService {
     await this.db.client.share.updateMany({ where: { id, ownerId }, data: { revokedAt: new Date() } });
   }
 
-  async view(id: string, req: Request, entryId?: string, cursor?: string) {
+  async view(id: string, req: Request, entryId?: string, cursor?: string, limit?: number) {
     const { share, row, root, session } = await this.allowed(id, req, entryId);
-    const page = row.kind === 'folder' ? await this.files.list(share.ownerId, row.id, '', 'files', cursor) : { items: [] };
+    const page = row.kind === 'folder'
+      ? await this.files.list(share.ownerId, row.id, '', 'files', cursor, 'name', {}, limit)
+      : { items: [] };
     return {
       rootId: root.id, allowDownload: share.allowDownload, expiresAt: session.expiresAt,
       entry: serializeEntry(row), ...page,

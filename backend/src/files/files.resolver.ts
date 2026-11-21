@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { Args, Context, Field, ObjectType, Query as GqlQuery, Resolver } from '@nestjs/graphql';
+import { Args, Context, Field, Int, ObjectType, Query as GqlQuery, Resolver } from '@nestjs/graphql';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { serializeEntry } from './file-entry';
@@ -53,6 +53,7 @@ export class FilesResolver {
     @Args('search', { type: () => String, defaultValue: '' }) search: string,
     @Args('view', { type: () => String, defaultValue: 'files' }) view: string,
     @Args('cursor', { type: () => String, nullable: true }) cursor?: string,
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
     @Args('sort', { type: () => String, defaultValue: 'name' }) sort = 'name',
     @Args('kind', { type: () => String, nullable: true }) kind?: string,
     @Args('mimePrefix', { type: () => String, nullable: true }) mimePrefix?: string,
@@ -71,7 +72,7 @@ export class FilesResolver {
       from: parseDate(from),
       to: parseDate(to),
     };
-    return this.files.list((await this.auth.session(req)).ownerId, parentId, search, view, cursor, sort, filters);
+    return this.files.list((await this.auth.session(req)).ownerId, parentId, search, view, cursor, sort, filters, limit);
   }
 
   @GqlQuery(() => FileItem)

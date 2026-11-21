@@ -44,8 +44,9 @@ export class GuestController {
   }
 
   @Get() @ApiCookieAuth('guest')
-  view(@Param('shareId') id: string, @Req() req: Request, @Query('entry') entryId?: string, @Query('cursor') cursor?: string) {
-    return this.shares.view(id, req, entryId, cursor);
+  view(@Param('shareId') id: string, @Req() req: Request, @Query('entry') entryId?: string,
+    @Query('cursor') cursor?: string, @Query('limit') limit?: string) {
+    return this.shares.view(id, req, entryId, cursor, Number(limit) || undefined);
   }
 
   @Post('preview/:id') @HttpCode(202) @ApiCookieAuth('guest')
