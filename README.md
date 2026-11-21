@@ -15,6 +15,7 @@ Conserva los originales, genera derivados para navegar y reproducir, y mantén l
 
 **Medios**
 - Miniaturas y vista previa de imágenes; póster y reproducción de video (transcodificación y streaming por rangos).
+- Compresión reversible de JPEG en el servidor cuando ahorra espacio. Las descargas reconstruyen el `.jpg` original byte por byte.
 - Reproductor de audio.
 - **Visor a pantalla completa** (galería): siguiente/anterior, teclado, swipe, zoom y descarga.
 

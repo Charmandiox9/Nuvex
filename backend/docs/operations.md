@@ -13,7 +13,9 @@ sudo install -d -m 0700 -o 1000 -g 1000 /srv/nuvex/data/media-work
 sudo install -d -m 0755 /srv/nuvex/backup-state
 ```
 
-Ajusta las rutas a `NUVEX_DATA` y `NUVEX_BACKUP_STATE`. El worker usa el UID 1000. Reserva espacio temporal para originales y derivados. Inicialmente deja la concurrencia del worker en uno.
+Ajusta las rutas a `NUVEX_DATA` y `NUVEX_BACKUP_STATE`. La API y el worker usan el UID 1000 y comparten el directorio de trabajo en el volumen cifrado. Reserva espacio temporal para originales y derivados. Inicialmente deja la concurrencia del worker en uno.
+
+Las imágenes de la API y del worker incluyen `libjxl-tools`. En desarrollo en el host, instala `cjxl` y `djxl` y ponlos en el `PATH` para probar la compresión de JPEG de hasta 16 MiB. El worker registra `originalBytes` y `storedBytes` cuando sustituye un JPEG. El espacio físico recuperado puede tardar en reflejarse hasta que SeaweedFS compacte sus volúmenes.
 
 ## Red, arranque y actualizaciones
 
@@ -21,6 +23,7 @@ Ajusta las rutas a `NUVEX_DATA` y `NUVEX_BACKUP_STATE`. El worker usa el UID 100
 - Extrae la CA con `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./nuvex-local-ca.crt`. Instálala como autoridad de confianza únicamente en los dispositivos que usarán Nuvex. Conserva la clave privada de la CA dentro del volumen cifrado.
 - Para actualizar con imágenes de GHCR, fija `NUVEX_API_IMAGE`, `NUVEX_WORKER_IMAGE` y `NUVEX_WEB_IMAGE` al mismo tag. Ejecuta el respaldo, descarga imágenes, aplica `docker compose run --rm --no-deps api pnpm migrate` y levanta con `docker compose up -d --no-build`. Comprueba `/api/v1/health`, un inicio de sesión y una descarga.
 - Para revertir, vuelve al tag anterior si el esquema es compatible. Si la actualización cambió el esquema de forma incompatible, restaura el respaldo en una instalación separada, valida y conmuta el tráfico. Conserva ambas copias hasta verificar los datos.
+- Antes de habilitar un worker que comprime JPEG, actualiza la API a una versión capaz de reconstruirlos. Una vez guardados JPEG XL, mantén una API compatible también al restaurar los datos o revertir otros componentes.
 - Cuando se publique en internet, mantén el drive en una VPN. El proxy público tendrá una lista explícita del visor y endpoints de invitado. Planea HTTPS, DNS, CGNAT y pruebas desde una red externa antes de publicar. El Caddyfile actual es de LAN.
 
 ## Copia nocturna
