@@ -36,9 +36,11 @@ const operationKeys: Record<Operation, string> = {
   folder: 'drive.op.folder', rename: 'drive.op.rename', move: 'drive.op.move', copy: 'drive.op.copy',
   restore: 'drive.op.restore', purge: 'drive.op.purge', share: 'drive.op.share',
 };
-const isViewableMedia = (row: Entry) => row.kind === 'file'
-  && (row.mime.startsWith('image/') || row.mime.startsWith('video/'))
-  && (row.mediaStatus === 'ready' || row.hasPreview);
+const isViewableMedia = (row: Entry) => {
+  if (row.kind !== 'file') return false;
+  if (row.mime.startsWith('audio/')) return true;
+  return (row.mime.startsWith('image/') || row.mime.startsWith('video/')) && (row.mediaStatus === 'ready' || row.hasPreview);
+};
 
 export default function Drive() {
   const router = useRouter();

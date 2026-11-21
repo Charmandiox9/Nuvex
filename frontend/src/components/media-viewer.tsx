@@ -38,6 +38,7 @@ export function MediaViewer({ items, index, onClose, onIndexChange, hasNextPage 
   const entry = details.data ?? current;
   const isVideo = Boolean(entry?.mime.startsWith('video/'));
   const isImage = Boolean(entry?.mime.startsWith('image/'));
+  const isAudio = Boolean(entry?.mime.startsWith('audio/'));
   const imageReady = Boolean(entry && (entry.mediaStatus === 'ready' || entry.hasPreview));
   const videoReady = entry?.mediaStatus === 'ready';
   const needsAction = Boolean(entry && ['failed', 'needs-transcode'].includes(entry.mediaStatus));
@@ -105,6 +106,7 @@ export function MediaViewer({ items, index, onClose, onIndexChange, hasNextPage 
       <div className={'lightbox-media' + (zoom ? ' zoomed' : '')}>
         {isImage && imageReady && <img src={content(entry.id, 'preview')} alt={entry.name} onClick={() => setZoom(!zoom)} />}
         {isVideo && videoReady && <video key={entry.id} src={content(entry.id, 'preview')} controls autoPlay playsInline preload="metadata" />}
+        {isAudio && <audio key={entry.id} src={content(entry.id, 'preview')} controls autoPlay preload="metadata" />}
         {isVideo && !videoReady && entry.hasPreview && <img src={content(entry.id, 'thumb')} alt={entry.name} />}
         {(isImage && !imageReady) || (isVideo && !videoReady) ? <p className="lightbox-status" role="status">{entry.mediaStatus === 'failed' ? t('drive.previewFailed') : t('drive.preparing')}</p> : null}
         {needsAction && <button type="button" className="secondary" onClick={() => void retry()}><RotateCcw size={16} /> {entry.mediaStatus === 'failed' ? t('drive.retryPreview') : t('drive.prepareVideo')}</button>}
