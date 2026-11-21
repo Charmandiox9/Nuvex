@@ -1,0 +1,28 @@
+{
+  "name": "@nuvex/web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5",
+    "animejs": "^4",
+    "lucide-react": "^0.577",
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19",
+    "sileo": "^0.1",
+    "three": "^0.183"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.183",
+    "typescript": "~5.9"
+  }
+}
