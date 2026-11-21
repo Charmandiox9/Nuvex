@@ -327,6 +327,7 @@ export default function Drive() {
             ))}
             {view !== 'trash' && <button className="secondary" onClick={() => void trash()}>{t('drive.moveToTrash')}</button>}
             {view !== 'trash' && active.length === 1 && active[0].kind === 'file' && <a className="secondary" href={content(active[0].id)}><Download size={15} /> {t('drive.download')}</a>}
+            {view !== 'trash' && active.length === 1 && active[0].kind === 'folder' && <a className="secondary" href={'/api/v1/entries/' + active[0].id + '/archive'}><Download size={15} /> {t('drive.downloadFolder')}</a>}
           </div>}
           {entries.error && <p className="error" role="alert">{message(entries.error)}</p>}
           {entries.isPending && <p role="status">{t('drive.loading')}</p>}
